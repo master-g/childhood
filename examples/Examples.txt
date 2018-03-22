@@ -1,0 +1,62 @@
+freemco NES Corelib Examples
+============================
+A number of example projects for the freemco NES Corelib are included.
+Each project is meant to be self-contained, including the necessary corelib files.
+(Because of this, please note that the corelib files may be out of date compared
+to the main repository.)
+
+The examples are meant to be short, while trying to show enough possibilities of
+what can be done.
+
+All examples are meant to be compiled with asm6; if you don't have it,
+download it from loopy's page: http://home.comcast.net/~olimar/NES/
+
+or you can download my fork, which includes sonder's FCEUX .nl-exporting code:
+https://github.com/freem/asm6f/
+
+--------------------------------------------------------------------------------
+[00_skeleton]
+A skeleton setup (NROM), used for most of the other examples.
+
+--------------------------------------------------------------------------------
+[01_helloBG]
+"Hello World" on the background layer.
+
+--------------------------------------------------------------------------------
+[02_helloSpr]
+"Hello World" on the sprite layer.
+
+--------------------------------------------------------------------------------
+[03_paletteBasics]
+NES palette basics.
+
+--------------------------------------------------------------------------------
+[04_inputBasics]
+Basic introduction to input handling (two regular controllers only).
+
+================================================================================
+Other examples are yet to be thought of... These are in no particular order.
+
+<Basic/Intro>
+* Nametable stuff (e.g. using Shiru's unrle code, updating the BG)
+* Metasprites and Animation
+* Basic Scrolling (across two screens)
+* Basic Mappers (e.g. discrete mappers/anything less complex than MMC1)
+* CHR-RAM Basics
+* Palette buffering (will also have color cycling example)
+
+<Intermediate>
+* Scrolling (across multiple screens)
+* Collision (sprite->sprite, sprite->background)
+* Compressed CHR-RAM (using tokumaru's code)
+* Sound (2A03 only; others are introduced with mappers)
+* PRG-RAM (both as save and work RAM)
+* Four-player input handling (NES and Famicom)
+* Intermediate Mappers (e.g. anything less complex than MMC5)
+
+<Advanced>
+* Handling various third party controllers
+* Raster effects
+* Extending VBlank (by shutting off the PPU at the right times)
+* Advanced Mappers (e.g. MMC5, etc.)
+* Mid-frame palette changes
