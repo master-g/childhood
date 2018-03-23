@@ -7,16 +7,17 @@
 ; This skeleton project makes a few assumptions that you might have to change
 ; when developing for other mappers.
 ;==============================================================================;
-; iNES header
-;.include ""
+; iNES header (NROM-128)
+.include "NROM-128.asm"
 
 ; defines
 .include "nes.inc"			; NES hardware defines
+.include "ram.inc"				; program RAM defines
 
 ;==============================================================================;
 ; program code
-.org $8000					; starting point for NROM-256
-;.org $C000					; starting point for NROM-128
+;.org $8000					; starting point for NROM-256
+.org $C000					; starting point for NROM-128
 
 ;==============================================================================;
 ; NMI
@@ -105,14 +106,32 @@ Reset:
 
 	; after setting up your program, wait for the 2nd vblank
 @waitVBL2:
-	bit $2002
+	bit PPU_STATUS
 	bpl @waitVBL2
+	lda #%10000000   ;intensify blues
+	sta PPU_MASK
 
 	; perform final commands (setting up PPU)
 
 	; and then run your program's main loop.
 MainLoop:
+	; things before vblank
+
+	jsr waitVBlank				; wait for vblank
+
+	; things after vblank
+
 	jmp MainLoop
+
+;==============================================================================;
+; waitVBlank: waits for VBlank
+
+waitVBlank:
+	inc vblanked
+@waitLoop:
+	lda vblanked
+	bne @waitLoop
+	rts
 
 ;==============================================================================;
 ; Vectors
