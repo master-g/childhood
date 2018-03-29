@@ -12,6 +12,7 @@
 
 ; defines
 .include "nes.inc"      ; NES hardware defines
+.include "ram.inc"      ; program RAM defines
 
 ;==============================================================================;
 ; program code
@@ -37,33 +38,47 @@ NMI:
   lda #$02
   sta OAM_DMA   ; set the high byte (02) of the RAM address, start the transfer
 
-LatchController:
+
+; At the same time that we strobe bit 0, we initialize the ring counter
+; so we're hitting two birds with one stone here
+ReadJoyStick:
   lda #$01
+  ; While the strobe bit is set, buttons will be continuously reloaded.
+  ; This means that reading from JOYSTICK1 will only return the state of the
+  ; first button: button A.
   sta JOYSTICK1
-  lda #$00
+  sta buttons
+  lsr a        ; now A is 0
+  ; By storing 0 into JOYSTICK1, the strobe bit is cleared and the reloading stops.
+  ; This allows all 8 buttons (newly reloaded) to be read from JOYSTICK1.
   sta JOYSTICK1
-
-ReadA:
+ReadJoyStickLoop:
   lda JOYSTICK1
-  and #%00000001  ; only look at bit 0
-  beq ReadADone
+  lsr a	       ; bit0 -> Carry
+  rol buttons  ; Carry -> bit0; bit 7 -> Carry
+  bcc ReadJoyStickLoop
 
-  lda $0203       ; load sprite X position
-  clc             ; clear carry flag before add
-  adc #$01        ; A = A + 1
-  sta $0203       ; save sprite X position
-ReadADone:    ; handling this button is done
-
-ReadB:
-  lda JOYSTICK1
-  and #%00000001
-  beq ReadBDone
+CheckButtonLeft:
+  lda buttons
+  and #PAD_LEFT
+  beq CheckButtonRight
 
   lda $0203
-  sec             ; set carry flag before subtract
-  sbc #$01        ; A = A - 1
+  sec
+  sbc #$01
   sta $0203
-ReadBDone:
+
+CheckButtonRight:
+  lda buttons
+  and #PAD_RIGHT
+  beq CheckButtonEnd
+
+  lda $0203
+  clc
+  adc #$01
+  sta $0203
+
+CheckButtonEnd:
 
 NMI_end:
   ; restore registers

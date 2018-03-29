@@ -53,3 +53,4 @@ dkms.conf
 
 asm6
 *.nes
+example/fceux
