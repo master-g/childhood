@@ -37,37 +37,33 @@ NMI:
   lda #$02
   sta OAM_DMA   ; set the high byte (02) of the RAM address, start the transfer
 
-DrawSprite:
-  lda #$08      ; top of the screen
-  sta $0200     ; sprite 1 y position
-  lda #$08
-  sta $0204     ; sprite 2 y position
-  lda #$10
-  sta $0208
-  lda #$10
-  sta $020C
-  lda #$3A
-  sta $0201
-  lda #$37
-  sta $0205
-  lda #$4F
-  sta $0209
-  lda #$4F
-  sta $020D
+LatchController:
+  lda #$01
+  sta JOYSTICK1
   lda #$00
-  sta $0202
-  sta $0206
-  sta $020A
-  lda #$40
-  sta $020E
-  lda #$08
+  sta JOYSTICK1
+
+ReadA:
+  lda JOYSTICK1
+  and #%00000001  ; only look at bit 0
+  beq ReadADone
+
+  lda $0203       ; load sprite X position
+  clc             ; clear carry flag before add
+  adc #$01        ; A = A + 1
+  sta $0203       ; save sprite X position
+ReadADone:    ; handling this button is done
+
+ReadB:
+  lda JOYSTICK1
+  and #%00000001
+  beq ReadBDone
+
+  lda $0203
+  sec             ; set carry flag before subtract
+  sbc #$01        ; A = A - 1
   sta $0203
-  lda #$10
-  sta $0207
-  lda #$08
-  sta $020B
-  lda #$10
-  sta $020F
+ReadBDone:
 
 NMI_end:
   ; restore registers
@@ -138,30 +134,32 @@ LoadPalettes:
   sta PPU_ADDR          ; write the high byte of $3F00 address
   lda #$00
   sta PPU_ADDR          ; write the low byte of $3F00 address
+                        ; PPU_DATA is now ready to accept data
   ldx #$00              ; start out at 0
-LoadBackgroundPaletteLoop:
-  lda background_palette, x ; load data from address (palette + the value in x)
-                            ; 1st time through loop it will load palette+0
-                            ; 2nd time through loop it will load palette+1
-                            ; 3rd time through loop it will load palette+2
-                            ; etc
+LoadPaletteLoop:
+  lda palette, x        ; load data from address (palette + the value in x)
+                        ; 1st time through loop it will load palette+0
+                        ; 2nd time through loop it will load palette+1
+                        ; 3rd time through loop it will load palette+2
+                        ; etc
   sta PPU_DATA          ; write to PPU
   inx                   ; X = X + 1
-  cpx #$10              ; Compare X to hex $10, decimal 16 - copying 16 bytes = 4 sprites
-  bne LoadBackgroundPaletteLoop  ; Branch to LoadPalettesLoop if compare was Not Equal to ze
+  cpx #$20              ; Compare X to hex $10, decimal 16
+  bne LoadPaletteLoop
 
-  ldx #$00
-LoadSpritePaletteLoop:
-  lda sprite_palette, x
-  sta PPU_DATA
+LoadSprites:
+  ldx #$00              ; start at 0
+LoadSpritesLoop:
+  lda sprites, x        ; load data from address (sprites + x)
+  sta $0200, x          ; store into RAM address ($200 + x)
   inx
-  cpx #$10
-  bne LoadSpritePaletteLoop
+  cpx #$20
+  bne LoadSpritesLoop
 
-  lda #%10000000  ; enable NMI, sprites from Palette Table 0
+  lda #%10000000   ; enable NMI, sprites from Pattern Table 0
   sta PPU_CTRL
 
-  lda #%00010000  ; enable sprite
+  lda #%00010000   ; enable sprites
   sta PPU_MASK
 
   ; and then run your program's main loop.
@@ -171,17 +169,16 @@ MainLoop:
 ;==============================================================================;
 ; background palette
 .org $E000
-background_palette:
-  .db $22,$29,$1A,$0F ;background palette 1
-  .db $22,$36,$17,$0F ;background palette 2
-  .db $22,$30,$21,$0F ;background palette 3
-  .db $22,$27,$17,$0F ;background palette 4
+palette:
+  .db $0F,$31,$32,$33,$0F,$35,$36,$37,$0F,$39,$3A,$3B,$0F,$3D,$3E,$0F
+  .db $0F,$1C,$15,$14,$0F,$02,$38,$3C,$0F,$1C,$15,$14,$0F,$02,$38,$3C
 
-sprite_palette:
-  .db $22,$16,$27,$18 ;sprite palette 1
-  .db $22,$1A,$30,$27 ;sprite palette 2
-  .db $22,$16,$30,$27 ;sprite palette 3
-  .db $22,$0F,$36,$17 ;sprite palette 4
+sprites:
+    ;vert tile attr horiz
+  .db $80, $32, $00, $80   ;sprite 0
+  .db $80, $33, $00, $88   ;sprite 1
+  .db $88, $34, $00, $80   ;sprite 2
+  .db $88, $35, $00, $88   ;sprite 3
 
 ;==============================================================================;
 ; Vectors
