@@ -10,6 +10,8 @@ import (
 	"os"
 	"sort"
 
+	"math/bits"
+
 	"gopkg.in/urfave/cli.v2"
 )
 
@@ -44,12 +46,13 @@ func main() {
 				Name:    "sp",
 				Aliases: []string{"s"},
 				Usage:   "sprite palette",
-				Value:   "22162718",
+				Value:   "22271618",
 			},
 			&cli.StringFlag{
 				Name:    "out",
 				Aliases: []string{"o"},
 				Usage:   "output file",
+				Value:   "chr",
 			},
 		},
 		Name:    "chr2png",
@@ -61,11 +64,9 @@ func main() {
 			sp := c.String("sp")
 			outFile = c.String("out")
 
-			if chrFile == "" {
-				return cli.Exit("chr file missing", 86)
-			}
-			if outFile == "" {
-				return cli.Exit("output file missing", 86)
+			if chrFile == "" || outFile == "" {
+				cli.ShowAppHelp(c)
+				return cli.Exit("", 86)
 			}
 
 			// load sprite palette
@@ -140,12 +141,14 @@ func processCHR(fileName string) {
 }
 
 func setTilePixel(y int, line byte, buf []uint, add bool) {
+	mirror := bits.Reverse8(line)
 	for x := 0; x < 8; x++ {
-		c := uint(line) >> uint(x) & 0x1
+		c := uint(mirror) >> uint(x) & 0x1
+		pos := y*8 + x
 		if add {
-			buf[y*8+x] += c
+			buf[pos] = buf[pos]*2 + c
 		} else {
-			buf[y*8+x] = c
+			buf[pos] = c
 		}
 	}
 }
@@ -156,11 +159,11 @@ func writeTile(img *image.RGBA, page, tx, ty int, pixels []uint) {
 			pixel := pixels[y*8+x]
 			ox := (tx+page*16)*8 + x
 			oy := ty*8 + y
-			if pixel != 0 {
-				img.Set(ox, oy, color.RGBA{255, 255, 255, 255})
-			} else {
-				img.Set(ox, oy, color.RGBA{255, 255, 255, 0})
-			}
+			paletteValue := spritePalette[pixel]
+			r := palette[paletteValue*kRGBSize]
+			g := palette[paletteValue*kRGBSize+1]
+			b := palette[paletteValue*kRGBSize+2]
+			img.Set(ox, oy, color.RGBA{r, g, b, 255})
 		}
 	}
 }
@@ -170,25 +173,22 @@ func drawPNG(number int, data []byte) {
 	img := image.NewRGBA(image.Rect(0, 0, 256, 128))
 
 	tileData := make([]uint, 64)
-	trigger := false
 	for i, b := range data {
 		page := i / kPageSizeInBytes
 		ii := i % kPageSizeInBytes
-		tileX := ii % 256
+		tileX := ii / 16 % 16
 		tileY := ii / 256
 		ti := i % 16
-		fmt.Printf("%04d - page:%v tx:%v ty:%v\n", i, page, tileX, tileY)
-		if ti == 0 && trigger {
-			// draw
-			//writeTile(img, page, tileX, tileY, tileData)
-			trigger = false
-		} else if ti < 8 {
+		if ti < 8 {
 			// first pass
 			setTilePixel(i%8, b, tileData, false)
 		} else {
 			// second pass
 			setTilePixel(i%8, b, tileData, true)
-			trigger = true
+		}
+		if ti == 15 {
+			// draw
+			writeTile(img, page, tileX, tileY, tileData)
 		}
 	}
 
