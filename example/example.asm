@@ -80,6 +80,18 @@ CheckButtonRight:
 
 CheckButtonEnd:
 
+
+  ; This is the PPU clean up section
+  ; so rendering the next frame starts properly
+  lda #%10010000  ; enable NMI, sprites, background from Pattern Table 0 and 1
+  sta PPU_CTRL
+  lda #%00011110  ; enable sprites, background, no clipping on left side
+  sta PPU_MASK
+  lda #$00        ; tell PPU there is no background scrolling
+  sta PPU_SCROLL
+  sta PPU_SCROLL
+
+
 NMI_end:
   ; restore registers
   pla            ; 3) pull Y
@@ -142,7 +154,8 @@ Reset:
   bit PPU_STATUS
   bpl @waitVBLANK2
 
-  ; perform final commands (setting up PPU)
+
+; perform final commands (setting up PPU)
 LoadPalettes:
   lda PPU_STATUS        ; read PPU status to reset the high/low latch
   lda #$3F
@@ -162,20 +175,55 @@ LoadPaletteLoop:
   cpx #$20              ; Compare X to hex $10, decimal 16
   bne LoadPaletteLoop
 
+
 LoadSprites:
   ldx #$00              ; start at 0
 LoadSpritesLoop:
   lda sprites, x        ; load data from address (sprites + x)
   sta $0200, x          ; store into RAM address ($200 + x)
   inx
-  cpx #$20
+  cpx #$10
   bne LoadSpritesLoop
 
-  lda #%10000000   ; enable NMI, sprites from Pattern Table 0
+
+LoadBackground:
+  lda PPU_STATUS        ; read PPU status to reset the high/low latch
+  lda #$20
+  sta PPU_ADDR
+  lda #$00
+  sta PPU_ADDR
+  ldx #$00
+LoadBackgroundLoop:
+  lda background, x
+  sta PPU_DATA
+  inx
+  cpx #$80
+  bne LoadBackgroundLoop
+
+
+LoadAttribute:
+  lda PPU_STATUS
+  lda #$23
+  sta PPU_ADDR
+  lda #$C0
+  sta PPU_ADDR
+  ldx #$00
+LoadAttributeLoop:
+  lda attribute, x
+  sta PPU_DATA
+  inx
+  cpx #$10
+  bne LoadAttributeLoop
+
+
+  lda #%10010000    ; enable NMI
+                    ; sprites from Pattern Table 0
+                    ; background from Pattern Table 1
   sta PPU_CTRL
 
-  lda #%00010000   ; enable sprites
+  lda #%00011110   ; enable sprites, background, no clipping on left side
   sta PPU_MASK
+
 
   ; and then run your program's main loop.
 MainLoop:
@@ -185,15 +233,55 @@ MainLoop:
 ; background palette
 .org $E000
 palette:
-  .db $0F,$31,$32,$33,$0F,$35,$36,$37,$0F,$39,$3A,$3B,$0F,$3D,$3E,$0F
-  .db $0F,$1C,$15,$14,$0F,$02,$38,$3C,$0F,$1C,$15,$14,$0F,$02,$38,$3C
+  ; background palette
+  .db $22,$29,$1A,$0F
+  .db $22,$36,$17,$0F
+  .db $22,$30,$21,$0F
+  .db $22,$27,$17,$0F
+  ; sprite palette
+  .db $22,$16,$27,$18   ; mario
+  .db $22,$30,$27,$19   ; luigi
+  .db $22,$37,$27,$16   ; fire
+  .db $22,$1A,$30,$27   ; bowser
 
 sprites:
     ;vert tile attr horiz
-  .db $80, $32, $00, $80   ;sprite 0
-  .db $80, $33, $00, $88   ;sprite 1
-  .db $88, $34, $00, $80   ;sprite 2
-  .db $88, $35, $00, $88   ;sprite 3
+  .db $80, $32, $00, $80   ; sprite 0
+  .db $80, $33, $00, $88   ; sprite 1
+  .db $88, $34, $00, $80   ; sprite 2
+  .db $88, $35, $00, $88   ; sprite 3
+
+background:
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;row 1
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;all sky
+
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;row 2
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;all sky
+
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;row 1
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$36,$37,$24,$24,$24,$24,$24,$24  ;;all sky
+
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;row 2
+  .db $24,$24,$24,$24,$24,$24,$24,$35,$25,$25,$38,$24,$24,$24,$24,$24  ;;all sky
+
+  .db $24,$24,$24,$24,$45,$45,$24,$24,$45,$45,$45,$45,$45,$45,$24,$24  ;;row 3
+  .db $24,$24,$24,$24,$24,$24,$24,$39,$3A,$3B,$3C,$24,$53,$54,$24,$24  ;;some brick tops
+
+  .db $24,$24,$24,$24,$47,$47,$24,$24,$47,$47,$47,$47,$47,$47,$24,$24  ;;row 4
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$55,$56,$24,$24  ;;brick bottoms
+
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;row 1
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;all sky
+
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;row 2
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24,$24  ;;all sky
+
+attribute:
+  .db %00000000, %00000000, %00000000, %00000000, %00000000, %10000000, %10100000, %00000000
+  .db %00000000, %00000010, %00000101, %00000001, %00000000, %00001000, %00001010, %00000011
+
+  .db $24,$24,$24,$24, $47,$47,$24,$24 ,$47,$47,$47,$47, $47,$47,$24,$24
+  .db $24,$24,$24,$24 ,$24,$24,$24,$24, $24,$24,$24,$24, $55,$56,$24,$24
 
 ;==============================================================================;
 ; Vectors
