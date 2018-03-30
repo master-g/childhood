@@ -97,6 +97,7 @@ func loadPalette(paletteName string) {
 	palette = getPalette(paletteName)
 	if palette == nil {
 		f, err := os.Open(paletteName)
+		defer f.Close()
 		if err != nil {
 			fmt.Printf("'%v' is not a valid palette name or file\n", paletteName)
 			fmt.Println("use one of the palettes below or a valid PAL file")
