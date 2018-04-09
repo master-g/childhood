@@ -63,20 +63,61 @@ CheckButtonLeft:
   and #PAD_LEFT
   beq CheckButtonRight
 
-  lda $0203
+  ldx #$00
+MoveLeftLoop:
+  lda $0203, x
   sec
   sbc #$01
-  sta $0203
+  sta $0203, x
+
+  inx
+  inx
+  inx
+  inx
+  cpx #$10
+  bne MoveLeftLoop
 
 CheckButtonRight:
   lda buttons
   and #PAD_RIGHT
-  beq CheckButtonEnd
+  beq CheckButtonSelect
 
-  lda $0203
+  ldx #$00
+MoveRightLoop:
+  lda $0203, x
   clc
   adc #$01
-  sta $0203
+  sta $0203, x
+
+  inx
+  inx
+  inx
+  inx
+  cpx #$10
+  bne MoveRightLoop
+
+CheckButtonSelect:
+  lda buttons
+  and #PAD_SELECT
+  beq CheckButtonEnd
+
+  ldx #$00
+ChangePaletteLoop:
+  lda $0202, x
+  clc
+  adc #$01
+  cmp #$04
+  bne SelectPalette
+  lda #$00
+SelectPalette:
+  sta $0202, x
+
+  inx
+  inx
+  inx
+  inx
+  cpx #$10
+  bne ChangePaletteLoop
 
 CheckButtonEnd:
 
