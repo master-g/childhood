@@ -22,12 +22,8 @@ func main() {
 	defer f.Close()
 	checkErr(err)
 
-	// read header
-	header := NewHeader(f)
-	if header == nil {
-		fmt.Println("invalid header")
-		os.Exit(-1)
+	if err = ExtractROM(os.Args[1]); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
-
-	fmt.Println(header)
 }

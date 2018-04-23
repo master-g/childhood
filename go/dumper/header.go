@@ -11,12 +11,58 @@ const (
 	HeaderSize = 16
 )
 
+// MirroringDirection mirroring direction
 type MirroringDirection int
+
+// TVSystemType support TV system
+type TVSystemType int
+
+// TVCompatibleType TV compatible
+type TVCompatibleType int
 
 const (
 	MirroringHorizontal MirroringDirection = 0
 	MirroringVertical   MirroringDirection = 1
+
+	TVSystemNTSC TVSystemType = 0
+	TVSystemPAL  TVSystemType = 1
+
+	TVCompatibleNTSC TVCompatibleType = 0
+	TVCompatiblePAL  TVCompatibleType = 2
+	TVCompatibleDual TVCompatibleType = 3
 )
+
+func (d MirroringDirection) String() string {
+	if d == MirroringHorizontal {
+		return "Horizontal"
+	} else if d == MirroringVertical {
+		return "Vertical"
+	} else {
+		return "N/A"
+	}
+}
+
+func (t TVSystemType) String() string {
+	if t == TVSystemNTSC {
+		return "NTSC"
+	} else if t == TVSystemPAL {
+		return "PAL"
+	} else {
+		return "N/A"
+	}
+}
+
+func (t TVCompatibleType) String() string {
+	if t == TVCompatibleNTSC {
+		return "NTSC"
+	} else if t == TVCompatiblePAL {
+		return "PAL"
+	} else if t == TVCompatibleDual {
+		return "DUAL"
+	} else {
+		return "N/A"
+	}
+}
 
 type Header struct {
 	Identifier [4]byte // Identifier must be ascii 'NES' and a MS-DOS character break
@@ -24,10 +70,15 @@ type Header struct {
 	CHR        uint8   // CHR size of CHR ROM in 8KB units, 0 means CHR RAM only
 	Flag6      uint8   // NNNN FTBM
 	Flag7      uint8   // NNNN xxPV
+	PRGRAM     uint8   // PRG RAM in 8KB units, 0 infers 8KB for compatibility
+	Flag9      uint8   // xxxx xxxT
+	Flag10     uint8   // xxBP xxTT
+	padding    [5]byte // zero padding
 }
 
 var (
 	standardIdentifier = []byte{0x4E, 0x45, 0x53, 0x1A}
+	standardPadding    = []byte{0x00, 0x00, 0x00, 0x00, 0x00}
 )
 
 // NewHeader create a new header from data
@@ -47,8 +98,25 @@ func NewHeader(r io.Reader) *Header {
 	h.CHR = buf[5]
 	h.Flag6 = buf[6]
 	h.Flag7 = buf[7]
+	h.PRGRAM = buf[8]
+	h.Flag9 = buf[9]
+	h.Flag10 = buf[10]
+	copy(h.padding[:], buf[10:])
+	if bytes.Compare(h.padding[:], standardPadding) != 0 {
+		return nil
+	}
 
 	return h
+}
+
+// PRGROMSize returns PRG ROM size
+func (h *Header) PRGROMSize() int {
+	return int(h.PRG) * 16 * 1024
+}
+
+// CHRROMSize returns CHR ROM size
+func (h *Header) CHRROMSize() int {
+	return int(h.CHR) * 8 * 1024
 }
 
 // Mapper returns mapper number
@@ -114,6 +182,59 @@ func (h *Header) Vs() bool {
 	return h.Flag7&0x01 != 0
 }
 
+// Byte8
+// --------
+// PRGRAMSize returns size of PRG RAM
+func (h *Header) PRGRAMSize() int {
+	if h.PRGRAM == 0 {
+		return 8
+	} else {
+		return int(h.PRGRAM) * 8
+	}
+}
+
+// Flag9
+// --------
+// 76543210
+// xxxxxxxT
+// ||||||||
+// |||||||+- TV system. 0 = NTSC, 1 = PAL
+// +++++++-- Reserved, must be 0
+
+// TVSystem returns TV system type defined in flag9
+func (h *Header) TVSystem() TVSystemType {
+	return TVSystemType(h.Flag9 & 0x01)
+}
+
+// Flag10
+// --------
+// 76543210
+// xxBPxxTT
+//   ||  ||
+//   ||  ++- TV system. 0 = NTSC, 2 = PAL, 1,3 = dual compatible
+//   |+----- PRG RAM. 0 = present, 1 = not present
+//   +------ Bus conflict. 0 = no conflict, 1 = bus conflict
+
+// TVCompatible returns TV system type in flag10
+func (h *Header) TVCompatible() TVCompatibleType {
+	f := h.Flag10 & 0x03
+	if f == 1 || f == 3 {
+		return TVCompatibleDual
+	} else {
+		return TVCompatibleType(f)
+	}
+}
+
+// PRGRAMPresent returns PRG RAM present in flag10
+func (h *Header) PRGRAMPresent() bool {
+	return (h.Flag10 & 0x10) == 0
+}
+
+// BusConflict returns true if board has bus conflict
+func (h *Header) BusConflict() bool {
+	return (h.Flag10 & 0x20) != 0
+}
+
 func (h *Header) String() string {
 	var ver string
 	if h.NES20() {
@@ -121,9 +242,35 @@ func (h *Header) String() string {
 	} else {
 		ver = "iNES1.0"
 	}
-	return fmt.Sprintf(`VER: %v
+	return fmt.Sprintf(`HDR: %v
+VER: %v
 PRG: %v %vKB
 CHR: %v %vKB
-MAP: %v %v`,
-		ver, h.PRG, h.PRG*16, h.CHR, h.CHR*8, h.Mapper(), getMapper(int(h.Mapper())))
+MAP: %v %v
+PRG: %v %vKB
+4Screen: %v
+Trainer: %v
+PersistentSRAM: %v
+Mirroring: %v
+PlayChoice10: %v
+VS Unisystem: %v
+TV System: %v
+TV Compatible: %v
+BUS Conflict: %v`,
+		string(h.Identifier[:]),
+		ver,
+		h.PRG, h.PRG*16,
+		h.CHR, h.CHR*8,
+		h.Mapper(), getMapper(int(h.Mapper())),
+		h.PRGRAM, h.PRGRAMSize(),
+		h.FourScreenMode(),
+		h.Trainer(),
+		h.PRGRAMPresent(),
+		h.Mirroring(),
+		h.PlayChoice10(),
+		h.Vs(),
+		h.TVSystem(),
+		h.TVCompatible(),
+		h.BusConflict(),
+	)
 }
