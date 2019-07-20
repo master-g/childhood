@@ -7,10 +7,9 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"math/bits"
 	"os"
 	"sort"
-
-	"math/bits"
 
 	"gopkg.in/urfave/cli.v2"
 )

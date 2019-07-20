@@ -1,14 +1,12 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
 	"strings"
-
-	"fmt"
-
-	"github.com/btcsuite/goleveldb/leveldb/errors"
 )
 
 var (
