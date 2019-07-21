@@ -78,7 +78,7 @@
 +-----------------+
 | 1. Introduction |
 +-----------------+
-
+  
   A. Disclaimer
   -------------
     I am in no way held responsible for the results of this information.
@@ -370,35 +370,9 @@
     indirect addressing modes. Due to limitations of zero-page, all
     indexed-indirect read/writes should apply a logical AND #$FF to
     the effective address after calculation. Example:
-
+    
       C000: LDX #3        ; Reads indirect address from $0002+$0003,
       C002: LDA ($FF,X)   ;   not $0102+$0103.
-
-
-  F. Pin Out
-  ----------
-            .--\/--.
-     AD1 <- |01  40| -- +5V
-     AD2 <- |02  39| -> OUT0
-    /RST -> |03  38| -> OUT1
-     A00 <- |04  37| -> OUT2
-     A01 <- |05  36| -> /OE1
-     A02 <- |06  35| -> /OE2
-     A03 <- |07  34| -> R/W
-     A04 <- |08  33| <- /NMI
-     A05 <- |09  32| <- /IRQ
-     A06 <- |10  31| -> M2
-     A07 <- |11  30| <- TST (usually GND)
-     A08 <- |12  29| <- CLK
-     A09 <- |13  28| <> D0
-     A10 <- |14  27| <> D1
-     A11 <- |15  26| <> D2
-     A12 <- |16  25| <> D3
-     A13 <- |17  24| <> D4
-     A14 <- |18  23| <> D5
-     A15 <- |19  22| <> D6
-     GND -- |20  21| <> D7
-            `------'
 
 
 
@@ -476,7 +450,7 @@
     refers to. It also holds the lower two (2) bits of the 4-bit colour
     matrix needed to access all 16 colours of the NES palette. Example:
 
-       VRAM    Contents of                     Colour
+       VRAM    Contents of                     Colour 
        Addr   Pattern Table                    Result
       ------ ---------------                  --------
       $0000: %00010000 = $10 --+              ...1.... Periods are used to
@@ -568,10 +542,10 @@
 
         Name                       NT#0   NT#1   NT#2   NT#3   Flags
       +--------------------------+------+------+------+------+-------+
-      | Horizontal               | $000 | $000 | $400 | $400 |       |
-      | Vertical                 | $000 | $400 | $000 | $400 |       |
-      | Four-screen              | $000 | $400 | $800 | $C00 | F     |
-      | Single-screen            |      |      |      |      |  S    |
+      | Horizontal               | $000 | $000 | $400 | $400 |       | 
+      | Vertical                 | $000 | $400 | $000 | $400 |       | 
+      | Four-screen              | $000 | $400 | $800 | $C00 | F     | 
+      | Single-screen            |      |      |      |      |  S    | 
       | CHR-ROM mirroring        |      |      |      |      |   C   |
       +--------------------------+------+------+------+------+-------+
         F = Four-screen mirroring relies on an extra 2048 ($800) of RAM
@@ -695,7 +669,7 @@
       +-----------+-----------+-----+------------+
       | Sprite #0 | Sprite #1 | ... | Sprite #63 |
       +-+------+--+-----------+-----+------------+
-        |      |
+        |      |   
         +------+----------+--------------------------------------+
         + Byte | Bits     | Description                          |
         +------+----------+--------------------------------------+
@@ -745,7 +719,7 @@
     defines transparency.
 
     The pixel which causes D6 to be set *IS* drawn.
-
+    
     The following example should help. The following are two tiles.
     Transparent colours (colour #0) are defined via the underscore ('_')
     character. An asterisk ('*') represents when D6 will be set.
@@ -753,7 +727,7 @@
        Sprite         BG         Result
        ------         --         ------
       __1111__     ________     __1111__
-      _111111_     _______2     _1111112
+      _111111_     _______2     _1111112    
       11222211     ______21     11222211
       112__211  +  _____211  =  112__*11  '*' will be drawn as colour #2
       112__211     ____2111     112_2211
@@ -839,7 +813,7 @@
 
     VRAM $2000 contains $AA $BB $CC $DD.
     VRAM incrementation value is 1.
-    The result of execution is printed in the comment field.
+    The result of execution is printed in the comment field. 
 
       LDA #$20
       STA $2006
@@ -1504,3 +1478,5 @@
 
     The 4.5mm security screw is also used for the Super Nintendo Enter-
     tainment System (SNES), and Nintendo 64.
+
+
