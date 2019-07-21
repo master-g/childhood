@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package mos6502
+package nes6502
 
 // OpCode represent an opcode for MOS 6502
 type OpCode uint8
@@ -81,11 +81,223 @@ const (
 	OpMnemonicTXS = "TXS"
 	OpMnemonicTYA = "TYA"
 	OpMnemonicERR = "ERR"
+
+	// opcode might have multiple addressing mode, except implicit mode, opcode
+	// with below addressing mode will have postfix correspondingly
+	//
+	// ABS: absolute mode, next two bytes are the low/high byte of aan absolute
+	// 		memory address
+	// ABX: absolute, X, next two bytes are added to the value in register X to
+	// 		get the memory address
+	// ABY: absolute, Y, same as ABX, except the value of register is used
+	// 		instead of X
+	// ACC: accumulator, act on the value in the accumulator
+	// IMM: immediate, next byte is a constant to be used instead of a lookup
+	// IND: indirect, next two bytes are an absolute memory address of the
+	// 	 	lower nibble of a memory address. That byte and the byte after will
+	// 		be loaded and the address made of those two bytes will be used
+	// INX: indirect, X, add X to the following byte, modulo 0xFF, and
+	//		lookup two bytes starting at that location. Those two bytes from
+	//		the memory address will be used
+	// INY: indirect, Y, look up two bytes starting at address in the following
+	// 		byte, and Y modulo 0xFFFF, and use the result as an address
+	// REL: relative, next byte contains a signed offset fro the current PC.
+	// ZPG: zero-page, next byte is the low bits of the memory address
+	// ZPX: zero-page, X, add next byte to X modulo 0xFF and use that as a
+	//		memory address
+	opADCABS OpCode = 0x6D
+	opADCABX OpCode = 0x7D
+	opADCABY OpCode = 0x79
+	opADCIMM OpCode = 0x69
+	opADCINX OpCode = 0x61
+	opADCINY OpCode = 0x71
+	opADCZPG OpCode = 0x65
+	opADCZPX OpCode = 0x75
+
+	opANDABS OpCode = 0x2D
+	opANDABX OpCode = 0x3D
+	opANDABY OpCode = 0x39
+	opANDIMM OpCode = 0x29
+	opANDINX OpCode = 0x21
+	opANDINY OpCode = 0x31
+	opANDZPG OpCode = 0x25
+	opANDZPX OpCode = 0x35
+
+	opASLABS OpCode = 0x0E
+	opASLABX OpCode = 0x1E
+	opASLACC OpCode = 0x0A
+	opASLZP  OpCode = 0x06
+	opASLZPX OpCode = 0x16
+
+	opBCCREL OpCode = 0x90
+	opBCSREL OpCode = 0xB0
+	opBEQREL OpCode = 0xF0
+
+	opBITABS OpCode = 0x2C
+	opBITZPG OpCode = 0x24
+
+	opBMIREL OpCode = 0x30
+	opBNEREL OpCode = 0xD0
+	opBPLREL OpCode = 0x10
+
+	opBRK OpCode = 0x00
+
+	opBVCREL OpCode = 0x50
+	opBVSREL OpCode = 0x70
+
+	opCLC OpCode = 0x18
+	opCLD OpCode = 0xD8
+	opCLI OpCode = 0x58
+	opCLV OpCode = 0xB8
+
+	opCMPABS OpCode = 0xCD
+	opCMPABX OpCode = 0xDD
+	opCMPABY OpCode = 0xD9
+	opCMPIMM OpCode = 0xC9
+	opCMPINX OpCode = 0xC1
+	opCMPINY OpCode = 0xD1
+	opCMPZPG OpCode = 0xC5
+	opCMPZPX OpCode = 0xD5
+
+	opCPXABS OpCode = 0xEC
+	opCPXIMM OpCode = 0xE0
+	opCPXZPG OpCode = 0xE4
+
+	opCPYABS OpCode = 0xCC
+	opCPYIMM OpCode = 0xC0
+	opCPYZPG OpCode = 0xC4
+
+	opDECABS OpCode = 0xCE
+	opDECABX OpCode = 0xDE
+	opDECZPG OpCode = 0xC6
+	opDECZPX OpCode = 0xD6
+
+	opDEX OpCode = 0xCA
+	opDEY OpCode = 0x88
+
+	opEORABS OpCode = 0x4D
+	opEORABX OpCode = 0x5D
+	opEORABY OpCode = 0x59
+	opEORIMM OpCode = 0x49
+	opEORINX OpCode = 0x41
+	opEORINY OpCode = 0x51
+	opEORZPG OpCode = 0x45
+	opEORZPX OpCode = 0x55
+
+	opINCABS OpCode = 0xEE
+	opINCABX OpCode = 0xFE
+	opINCZPG OpCode = 0xE6
+	opINCZPX OpCode = 0xF6
+
+	opINX OpCode = 0xE8
+	opINY OpCode = 0xC8
+
+	opJMPABS OpCode = 0x4C
+	opJMPIND OpCode = 0x6C
+
+	opJSRAB OpCode = 0x20
+
+	opLDAABS OpCode = 0xAD
+	opLDAABX OpCode = 0xBD
+	opLDAABY OpCode = 0xB9
+	opLDAIMM OpCode = 0xA9
+	opLDAINX OpCode = 0xA1
+	opLDAINY OpCode = 0xB1
+	opLDAZPG OpCode = 0xA5
+	opLDAZPX OpCode = 0xB5
+
+	opLDXABS OpCode = 0xAE
+	opLDXABY OpCode = 0xBE
+	opLDXIMM OpCode = 0xA2
+	opLDXZPG OpCode = 0xA6
+	opLDXZPY OpCode = 0xB6
+
+	opLDYABS OpCode = 0xAC
+	opLDYABX OpCode = 0xBC
+	opLDYIMM OpCode = 0xA0
+	opLDYZPG OpCode = 0xA4
+	opLDYZPX OpCode = 0xB4
+
+	opLSRABS OpCode = 0x4E
+	opLSRABX OpCode = 0x5E
+	opLSRACC OpCode = 0x4A
+	opLSRZPG OpCode = 0x46
+	opLSRZPX OpCode = 0x56
+
+	opORAIMM OpCode = 0x09
+	opORAZPG OpCode = 0x05
+	opORAZPX OpCode = 0x15
+	opORAABS OpCode = 0x0D
+	opORAABX OpCode = 0x1D
+	opORAABY OpCode = 0x19
+	opORAINX OpCode = 0x01
+	opORAINY OpCode = 0x11
+
+	opNOP OpCode = 0xEA
+
+	opPHA OpCode = 0x48
+	opPHP OpCode = 0x08
+	opPLA OpCode = 0x68
+	opPLP OpCode = 0x28
+
+	opROLABS OpCode = 0x2E
+	opROLABX OpCode = 0x3E
+	opROLACC OpCode = 0x2A
+	opROLZPG OpCode = 0x26
+	opROLZPX OpCode = 0x36
+
+	opRORABS OpCode = 0x6E
+	opRORABX OpCode = 0x7E
+	opRORACC OpCode = 0x6A
+	opRORZPG OpCode = 0x66
+	opRORZPX OpCode = 0x76
+
+	opRTI OpCode = 0x40
+	opRTS OpCode = 0x60
+
+	opSBCIMM OpCode = 0xE9
+	opSBCZPG OpCode = 0xE5
+	opSBCZPX OpCode = 0xF5
+	opSBCABS OpCode = 0xED
+	opSBCABX OpCode = 0xFD
+	opSBCABY OpCode = 0xF9
+	opSBCINX OpCode = 0xE1
+	opSBCINY OpCode = 0xF1
+
+	opSEC OpCode = 0x38
+	opSED OpCode = 0xF8
+	opSEI OpCode = 0x78
+
+	opSTAABS OpCode = 0x8D
+	opSTAABX OpCode = 0x9D
+	opSTAABY OpCode = 0x99
+	opSTAINX OpCode = 0x81
+	opSTAINY OpCode = 0x91
+	opSTAZPG OpCode = 0x85
+	opSTAZPX OpCode = 0x95
+
+	opSTXZPG OpCode = 0x86
+	opSTXZPY OpCode = 0x96
+	opSTXABS OpCode = 0x8E
+
+	opSTYZPG OpCode = 0x84
+	opSTYZPX OpCode = 0x94
+	opSTYABS OpCode = 0x8C
+
+	opTAX OpCode = 0xAA
+	opTAY OpCode = 0xA8
+	opTSX OpCode = 0xBA
+	opTXA OpCode = 0x8A
+	opTXS OpCode = 0x9A
+	opTYA OpCode = 0x98
+
+	opWAI OpCode = 0xCB
 )
 
 var (
 	// http://www.thealmightyguru.com/Games/Hacking/Wiki/index.php/6502_Opcodes
-	HexToMnemonic = []string {
+	// HexToMnemonic holds mnemonic representation of an opcode, indexed by hex value of the opcode
+	HexToMnemonic = []string{
 		OpMnemonicBRK, // 0x00
 		OpMnemonicORA, // 0x01
 		OpMnemonicERR, // 0x02
