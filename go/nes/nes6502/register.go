@@ -21,49 +21,38 @@
 package nes6502
 
 const (
-	// MemoryCapacity the size of memory that a 6502 can address
-	MemoryCapacity = 65536
+	// FlagNegative N
+	FlagNegative uint8 = 0x80
+	// FlagOverflow V
+	FlagOverflow uint8 = 0x40
+	// FlagUnused U
+	FlagUnused uint8 = 0x20
+	// FlagBreak B
+	FlagBreak uint8 = 0x10
+	// FlagDecimal D
+	FlagDecimal uint8 = 0x08
+	// FlagInterrupt I
+	FlagInterrupt uint8 = 0x04
+	// FlagZero Z
+	FlagZero uint8 = 0x02
+	// FlagCarry C
+	FlagCarry uint8 = 0x01
 )
 
-// NES6502 cpu context
-type NES6502 struct {
-	registers Registers // registers
-
-	// memory on chip
-	memory [MemoryCapacity]uint8
-
-	// internal flag
-	internalFlag uint8
-	// interrupt flag
-	interrupt bool
-
-	// cpu cycles since reset
-	cycles int
-	// last executed opcode
-	lastOpCode OpCode
+// Registers in 6502 CPU
+type Registers struct {
+	// A accumulator
+	A uint8
+	// X index register
+	X uint8
+	// Y index register
+	Y uint8
+	// S stack pointer
+	S uint8
+	// PC program counter
+	PC uint16
+	// P processor status register
+	P uint8
 }
 
-const (
-	internalFlagDirty         = 0x01
-	internalFlagWaitInterrupt = 0x02
-)
-
-// NewNES6502 returns a NES 6502 cpu instance and sets its initial state to power up
-func NewNES6502() *NES6502 {
-	cpu := &NES6502{}
-
-	return cpu
-}
-
-// PowerUp sets cpu to power up state
-func (cpu *NES6502) PowerUp() {
-	cpu.registers.A = 0
-	cpu.registers.X = 0
-	cpu.registers.Y = 0
-	cpu.registers.S = 0xFD
-	cpu.registers.P = 0x34
-
-	cpu.internalFlag = 0
-	cpu.interrupt = false
-	cpu.cycles = 0
-}
+http://nwidger.github.io/blog/post/writing-an-nes-emulator-in-go-part-1/
