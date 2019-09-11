@@ -39,52 +39,175 @@ type Instruction struct {
 // required depending upon where and how the memory is accessed, so they return
 // the required adjustment
 
+// Address Mode: Implied
+// There is no additional data required for this instruction. The instruction
+// does something very simple like sets a status bit. However, we will
+// target the accumulator, for instructions like PHA
 func amIMP(cpu *MG6502) uint8 {
+	cpu.fetched = cpu.A
 	return 0
 }
 
+// Address Mode: Immediate
+// The instruction expects the next byte to be used as a value, so we'll prep
+// the read address to point to the next byte
 func amIMM(cpu *MG6502) uint8 {
+	cpu.addrAbs = cpu.PC
+	cpu.PC++
 	return 0
 }
 
+// Address Mode: Zero Page
+// To save program bytes, zero page addressing allows you to absolutely address
+// a location in first 0xFF bytes of address range. Clearly this only requires
+// one byte instead of the usual two.
 func amZP0(cpu *MG6502) uint8 {
+	cpu.addrAbs = uint16(cpu.read(cpu.PC))
+	cpu.PC++
+	cpu.addrAbs &= 0x00FF
 	return 0
 }
 
+// Address Mode: Zero Page with X Offset
+// Fundamentally the same as Zero Page addressing, but the contents of the X Register
+// is added to the supplied single byte address. This is useful for iterating through
+// ranges within the first page.
 func amZPX(cpu *MG6502) uint8 {
+	cpu.addrAbs = uint16(cpu.read(cpu.PC) + cpu.X)
+	cpu.PC++
+	cpu.addrAbs &= 0x00FF
 	return 0
 }
 
+// Address Mode: Zero Page with Y Offset
+// Same as above but uses Y Register for offset
 func amZPY(cpu *MG6502) uint8 {
+	cpu.addrAbs = uint16(cpu.read(cpu.PC) + cpu.Y)
+	cpu.PC++
+	cpu.addrAbs &= 0x00FF
 	return 0
 }
 
+// Address Mode: Relative
+// This address mode is exclusive to branch instructions. The address
+// must reside within -128 to +127 of the branch instruction, i.e.
+// you can't directly branch to any address in the addressable range.
 func amREL(cpu *MG6502) uint8 {
+	cpu.addrRel = uint16(cpu.read(cpu.PC))
+	cpu.PC++
+	if cpu.addrRel&0x80 > 0 {
+		cpu.addrRel |= 0xFF00
+	}
 	return 0
 }
 
+// Address Mode: Absolute
+// A full 16-bit address is loaded and used
 func amABS(cpu *MG6502) uint8 {
+	cpu.addrAbs = cpu.read16(cpu.PC)
+	cpu.PC += 2
 	return 0
 }
 
+// Address Mode: Absolute with X Offset
+// Fundamentally the same as absolute addressing, but the contents of the X Register
+// is added to the supplied two byte address. If the resulting address changes
+// the page, an additional clock cycle is required
 func amABX(cpu *MG6502) uint8 {
-	return 0
+	addr := cpu.read16(cpu.PC)
+	cpu.PC += 2
+	cpu.addrAbs = addr
+	cpu.addrAbs += uint16(cpu.X)
+
+	if cpu.addrAbs&0xFF00 != addr&0xFF00 {
+		// page changed
+		return 1
+	} else {
+		return 0
+	}
 }
 
+// Address Mode: Absolute with Y Offset
+// Fundamentally the same as absolute addressing, but the contents of the Y Register
+// is added to the supplied two byte address. If the resulting address changes
+// the page, an additional clock cycle is required
 func amABY(cpu *MG6502) uint8 {
-	return 0
+	addr := cpu.read16(cpu.PC)
+	cpu.PC += 2
+	cpu.addrAbs += uint16(cpu.Y)
+
+	if cpu.addrAbs&0xFF00 != addr&0xFF00 {
+		// page changed
+		return 1
+	} else {
+		return 0
+	}
 }
 
+// Note: The next 3 address modes use indirection (aka Pointers)
+
+// Address Mode: Indirect
+// The supplied 16-bit address is read to get the actual 16-bit address. This is
+// instruction is unusual in that it has a bug in the hardware! To emulate its
+// function accurately, we also need to emulate this bug. If the low byte of the
+// supplied address is 0xFF, then to read the high byte of the actual address
+// we need to cross a page boundary. This doesn't actually work on the chip as
+// designed, instead it wraps back around in the same page, yielding an invalid
+// actual address
 func amIND(cpu *MG6502) uint8 {
+	var ptrLo, ptrHi, ptr uint16
+	ptrLo = uint16(cpu.read(cpu.PC))
+	cpu.PC++
+	ptrHi = uint16(cpu.read(cpu.PC))
+	cpu.PC++
+
+	ptr = (ptrHi << 8) | ptrLo
+
+	if ptrLo == 0x00FF {
+		// simulate page boundary hardware bug
+		cpu.addrAbs = uint16(cpu.read(ptr&0xFF00))<<8 | uint16(cpu.read(ptr+0))
+	} else {
+		cpu.addrAbs = uint16(cpu.read(ptr+1))<<8 | uint16(cpu.read(ptr+0))
+	}
+
 	return 0
 }
 
+// Address Mode: Indirect X
+// The supplied 8-bit address is offset by X Register to index
+// a location in page 0x00. The actual 16-bit address is read from this location
 func amIZX(cpu *MG6502) uint8 {
+	t := uint16(cpu.read(cpu.PC))
+	cpu.PC++
+
+	lo := uint16(cpu.read((t + uint16(cpu.X)) & 0x00FF))
+	hi := uint16(cpu.read((t + uint16(cpu.X) + 1) & 0x00FF))
+
+	cpu.addrAbs = (hi << 8) | lo
+
 	return 0
 }
 
+// Address Mode: Indirect Y
+// The supplied 8-bit address indexes a location in page 0x00. From
+// here the actual 16-bit address is read, and the contents of Y
+// Register is added to it to offset it. If the offset causes a change
+// in page then an additional clock cycle is required
 func amIZY(cpu *MG6502) uint8 {
-	return 0
+	t := uint16(cpu.read(cpu.PC))
+	cpu.PC++
+
+	lo := uint16(cpu.read(t & 0x00FF))
+	hi := uint16(cpu.read((t + 1) & 0x00FF))
+
+	cpu.addrAbs = (hi << 8) | lo
+	cpu.addrAbs += uint16(cpu.Y)
+
+	if cpu.addrAbs&0xFF00 != (hi << 8) {
+		return 1
+	} else {
+		return 0
+	}
 }
 
 // Opcodes =====================================================================

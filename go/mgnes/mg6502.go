@@ -250,7 +250,11 @@ func (cpu *MG6502) Disassemble(start, end uint16) map[uint16]string {
 
 // flag accessor
 func (cpu *MG6502) getFlag(flag uint8) uint8 {
-	return cpu.FLAG & flag
+	if cpu.FLAG & flag > 0 {
+		return 1
+	} else {
+		return 0
+	}
 }
 
 func (cpu *MG6502) setFlag(flag uint8, v bool) {
@@ -300,9 +304,22 @@ func (cpu *MG6502) write(addr uint16, data uint8) {
 	cpu.bus.Write(addr, data)
 }
 
-// the read location of data can come from two sources, a memory address,
-// or its immediately available as part of the instruction. This function decides
-// depending on address mode of the instruction byte
+// This function sources the data used by the instruction into
+// a convenient numeric variable. Some instructions dont have to
+// fetch data as the source is implied by the instruction. For example
+// "INX" increments the X register. There is no additional data
+// required. For all other addressing modes, the data resides at
+// the location held within addr_abs, so it is read from there.
+// Immediate address mode exploits this slightly, as that has
+// set addr_abs = pc + 1, so it fetches the data from the
+// next byte for example "LDA $FF" just loads the accumulator with
+// 256, i.e. no far reaching memory fetch is required. "fetched"
+// is a variable global to the CPU, and is set by calling this
+// function. It also returns it for convenience.
 func (cpu *MG6502) fetch() uint8 {
+	amFunc := amIMP
+	if cpu.lookup[cpu.opcode].am == amFunc {
+
+	}
 	return 0
 }
