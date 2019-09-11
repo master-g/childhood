@@ -18,44 +18,43 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package nes6502
-
-// NES6502 cpu context
-type NES6502 struct {
-	registers Registers // registers
-
-	// memory on chip
-	memory Memory
-
-	// internal flag
-	internalFlag uint8
-	// interrupt flag
-	interrupt bool
-
-	// cpu cycles since reset
-	cycles int
-	// last executed opcode
-	lastOpCode OpCode
-}
+package mgnes
 
 const (
-	internalFlagDirty         = 0x01
-	internalFlagWaitInterrupt = 0x02
+	// MemoryCapacity the size of memory that a 6502 cpu can address
+	MemoryCapacity = 65536
 )
 
-// NewNES6502 returns a NES 6502 cpu instance and sets its initial state to power up
-func NewNES6502() *NES6502 {
-	cpu := &NES6502{}
-
-	return cpu
+// Memory interface definition
+type Memory interface {
+	Reset()
+	Read(addr uint16) (value uint8)
+	Write(addr uint16, value uint8) (oldValue uint8)
 }
 
-// PowerUp sets cpu to power up state
-func (cpu *NES6502) PowerUp() {
-	cpu.registers.PowerUp()
-	cpu.memory.reset()
+// PlainMemory 64KB of plain bytes
+type PlainMemory [MemoryCapacity]uint8
 
-	cpu.internalFlag = 0
-	cpu.interrupt = false
-	cpu.cycles = 0
+// NewPlainMemory create and returns a plain memory reference
+func NewPlainMemory() *PlainMemory {
+	mem := &PlainMemory{}
+	mem.Reset()
+	return mem
+}
+
+func (m *PlainMemory) Reset() {
+	for i := 0; i < len(m); i++ {
+		m[i] = 0xFF
+	}
+}
+
+func (m *PlainMemory) Read(addr uint16) (value uint8) {
+	return m[int(addr)%MemoryCapacity]
+}
+
+func (m *PlainMemory) Write(addr uint16, value uint8) (oldValue uint8) {
+	oldValue = m[int(addr)%MemoryCapacity]
+	m[int(addr)%MemoryCapacity] = value
+
+	return
 }

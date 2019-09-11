@@ -18,44 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package nes6502
+package mgnes
 
-// NES6502 cpu context
-type NES6502 struct {
-	registers Registers // registers
-
-	// memory on chip
-	memory Memory
-
-	// internal flag
-	internalFlag uint8
-	// interrupt flag
-	interrupt bool
-
-	// cpu cycles since reset
-	cycles int
-	// last executed opcode
-	lastOpCode OpCode
+// Bus transmit data between cpu and other components in the NES console
+type Bus struct {
+	ram Memory
 }
 
-const (
-	internalFlagDirty         = 0x01
-	internalFlagWaitInterrupt = 0x02
-)
-
-// NewNES6502 returns a NES 6502 cpu instance and sets its initial state to power up
-func NewNES6502() *NES6502 {
-	cpu := &NES6502{}
-
-	return cpu
+// NewBus create and return a new bus reference
+func NewBus() *Bus {
+	return &Bus{
+		ram: NewPlainMemory(),
+	}
 }
 
-// PowerUp sets cpu to power up state
-func (cpu *NES6502) PowerUp() {
-	cpu.registers.PowerUp()
-	cpu.memory.reset()
+// Write data to the bus
+func (bus *Bus) Write(addr uint16, data uint8) {
+	bus.ram.Write(addr, data)
+}
 
-	cpu.internalFlag = 0
-	cpu.interrupt = false
-	cpu.cycles = 0
+// Read data from the bus
+func (bus *Bus) Read(addr uint16, readonly bool) uint8 {
+	return bus.ram.Read(addr)
 }

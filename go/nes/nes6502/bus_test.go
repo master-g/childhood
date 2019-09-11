@@ -20,42 +20,32 @@
 
 package nes6502
 
-// NES6502 cpu context
-type NES6502 struct {
-	registers Registers // registers
-
-	// memory on chip
-	memory Memory
-
-	// internal flag
-	internalFlag uint8
-	// interrupt flag
-	interrupt bool
-
-	// cpu cycles since reset
-	cycles int
-	// last executed opcode
-	lastOpCode OpCode
-}
-
-const (
-	internalFlagDirty         = 0x01
-	internalFlagWaitInterrupt = 0x02
+import (
+	"testing"
 )
 
-// NewNES6502 returns a NES 6502 cpu instance and sets its initial state to power up
-func NewNES6502() *NES6502 {
-	cpu := &NES6502{}
+func TestBus_Read(t *testing.T) {
+	bus := NewBus()
+	vec1 := bus.Read(0, true)
+	if vec1 != 0 {
+		t.Errorf("Read() = %v, want 0", vec1)
+	}
 
-	return cpu
-}
+	bus.Write(1, 0xDE)
+	vec2 := bus.Read(1, true)
+	if vec2 != 0xDE {
+		t.Errorf("Read() = %v, want 0xDE", vec2)
+	}
 
-// PowerUp sets cpu to power up state
-func (cpu *NES6502) PowerUp() {
-	cpu.registers.PowerUp()
-	cpu.memory.reset()
+	bus.Write(2, 0xAD)
+	vec3 := bus.Read(2, true)
+	if vec3 != 0xAD {
+		t.Errorf("Read() = %v, want 0xAD", vec3)
+	}
 
-	cpu.internalFlag = 0
-	cpu.interrupt = false
-	cpu.cycles = 0
+	bus.Write(MemoryCapacity-1, 0x22)
+	vec4 := bus.Read(MemoryCapacity-1, true)
+	if vec4 != 0x22 {
+		t.Errorf("Read() = %v, want 0x22", vec4)
+	}
 }

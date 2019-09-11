@@ -55,4 +55,18 @@ type Registers struct {
 	P uint8
 }
 
-http://nwidger.github.io/blog/post/writing-an-nes-emulator-in-go-part-1/
+// PowerUp set registers to power up state
+// except PC, which needs to be set by both cpu and memory state
+func (reg *Registers) PowerUp() {
+	reg.A = 0
+	reg.X = 0
+	reg.Y = 0
+	reg.S = 0xFD
+	reg.P = 0x34
+}
+
+func (reg *Registers) Reset() {
+
+}
+
+// http://nwidger.github.io/blog/post/writing-an-nes-emulator-in-go-part-1/

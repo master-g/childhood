@@ -1,4 +1,4 @@
-// Copyright © 2019 mg
+// Copyright © 2019 ${<OWNER>}
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,44 +18,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package nes6502
+package mgnes
 
-// NES6502 cpu context
-type NES6502 struct {
-	registers Registers // registers
-
-	// memory on chip
-	memory Memory
-
-	// internal flag
-	internalFlag uint8
-	// interrupt flag
-	interrupt bool
-
-	// cpu cycles since reset
-	cycles int
-	// last executed opcode
-	lastOpCode OpCode
+type Logger interface {
+	Log(msg string)
 }
 
-const (
-	internalFlagDirty         = 0x01
-	internalFlagWaitInterrupt = 0x02
+type defaultLogger struct {
+
+}
+
+func (l *defaultLogger) Log(msg string) {
+
+}
+
+var (
+	defaultLoggerImpl = &defaultLogger{}
+	logger Logger = defaultLoggerImpl
+
+	logEnable = false
 )
 
-// NewNES6502 returns a NES 6502 cpu instance and sets its initial state to power up
-func NewNES6502() *NES6502 {
-	cpu := &NES6502{}
 
-	return cpu
+func SetLogger(impl Logger) {
+	if impl == nil {
+		logger = defaultLoggerImpl
+	} else {
+		logger = impl
+	}
 }
 
-// PowerUp sets cpu to power up state
-func (cpu *NES6502) PowerUp() {
-	cpu.registers.PowerUp()
-	cpu.memory.reset()
-
-	cpu.internalFlag = 0
-	cpu.interrupt = false
-	cpu.cycles = 0
+func SetLogEnable(enable bool) {
+	logEnable = enable
 }
+
