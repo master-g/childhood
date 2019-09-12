@@ -140,7 +140,7 @@ func (cpu *MG6502) Reset() {
 // location 0xFFFE, which is subsequently set to the program counter.
 func (cpu *MG6502) IRQ() {
 	// check interrupt disable flag
-	if cpu.getFlag(FlagInterrupt) != 0 {
+	if cpu.GetFlag(FlagInterrupt) != 0 {
 		return
 	}
 
@@ -148,9 +148,9 @@ func (cpu *MG6502) IRQ() {
 	cpu.pushPC()
 
 	// push status register
-	cpu.setFlag(FlagBreak, false)
-	cpu.setFlag(FlagUnused, true)
-	cpu.setFlag(FlagInterrupt, true)
+	cpu.SetFlag(FlagBreak, false)
+	cpu.SetFlag(FlagUnused, true)
+	cpu.SetFlag(FlagInterrupt, true)
 	cpu.pushFlag()
 
 	// read new program counter vector
@@ -167,9 +167,9 @@ func (cpu *MG6502) IRQ() {
 func (cpu *MG6502) NMI() {
 	cpu.pushPC()
 
-	cpu.setFlag(FlagBreak, false)
-	cpu.setFlag(FlagUnused, true)
-	cpu.setFlag(FlagInterrupt, true)
+	cpu.SetFlag(FlagBreak, false)
+	cpu.SetFlag(FlagUnused, true)
+	cpu.SetFlag(FlagInterrupt, true)
 	cpu.pushFlag()
 
 	cpu.PC = cpu.read16(0xFFFA)
@@ -187,7 +187,7 @@ func (cpu *MG6502) Clock() {
 		logPC := cpu.PC
 
 		// always set the unused flag to 1
-		cpu.setFlag(FlagUnused, true)
+		cpu.SetFlag(FlagUnused, true)
 		// increment PC since we read the opcode
 		cpu.PC++
 		// get instruction cycle cost
@@ -202,7 +202,7 @@ func (cpu *MG6502) Clock() {
 		cpu.cycles += addressingCycles & executionCycles
 
 		// always set the unused flag to 1
-		cpu.setFlag(FlagUnused, true)
+		cpu.SetFlag(FlagUnused, true)
 
 		if logEnable {
 			flagString := "NVUBDIZC"
@@ -210,7 +210,7 @@ func (cpu *MG6502) Clock() {
 
 			sb := &strings.Builder{}
 			for i, c := range flagString {
-				if cpu.getFlag(flagValues[i]) != 0 {
+				if cpu.GetFlag(flagValues[i]) != 0 {
 					sb.WriteRune(c)
 				} else {
 					sb.WriteRune('.')
@@ -248,8 +248,8 @@ func (cpu *MG6502) Disassemble(start, end uint16) map[uint16]string {
 	return nil
 }
 
-// flag accessor
-func (cpu *MG6502) getFlag(flag uint8) uint8 {
+// GetFlag returns the flag
+func (cpu *MG6502) GetFlag(flag uint8) uint8 {
 	if cpu.FLAG & flag > 0 {
 		return 1
 	} else {
@@ -257,7 +257,8 @@ func (cpu *MG6502) getFlag(flag uint8) uint8 {
 	}
 }
 
-func (cpu *MG6502) setFlag(flag uint8, v bool) {
+// SetFlag sets the flag
+func (cpu *MG6502) SetFlag(flag uint8, v bool) {
 	if v {
 		cpu.FLAG |= flag
 	} else {
@@ -317,9 +318,8 @@ func (cpu *MG6502) write(addr uint16, data uint8) {
 // is a variable global to the CPU, and is set by calling this
 // function. It also returns it for convenience.
 func (cpu *MG6502) fetch() uint8 {
-	amFunc := amIMP
-	if cpu.lookup[cpu.opcode].am == amFunc {
-
+	if !cpu.lookup[cpu.opcode].imm {
+		cpu.fetched = cpu.read(cpu.addrAbs)
 	}
-	return 0
+	return cpu.fetched
 }
