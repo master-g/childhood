@@ -42,6 +42,33 @@ const (
 	FlagZero uint8 = 0x02
 	// FlagCarry C
 	FlagCarry uint8 = 0x01
+
+	// Addressing Mode Unknown
+	AddrModeUnknown = iota
+	// Addressing Mode Implied
+	AddrModeIMP
+	// Addressing Mode Immediate
+	AddrModeIMM
+	// Addressing Mode Zero Page
+	AddrModeZP0
+	// Addressing Mode Zero Page with X Offset
+	AddrModeZPX
+	// Addressing Mode Zero Page with Y Offset
+	AddrModeZPY
+	// Addressing Mode Relative
+	AddrModeREL
+	// Addressing Mode Absolute
+	AddrModeABS
+	// Addressing Mode Absolute with X Offset
+	AddrModeABX
+	// Addressing Mode Absolute with Y Offset
+	AddrModeABY
+	// Addressing Mode Indirect
+	AddrModeIND
+	// Addressing Mode Indirect X
+	AddrModeIZX
+	// Addressing Mode Indirect Y
+	AddrModeIZY
 )
 
 // MG6502 emulates a 6502 cpu from software perspective
@@ -151,7 +178,7 @@ func (cpu *MG6502) IRQ() {
 	cpu.SetFlag(FlagBreak, false)
 	cpu.SetFlag(FlagUnused, true)
 	cpu.SetFlag(FlagInterrupt, true)
-	cpu.pushFlag()
+	cpu.push(cpu.FLAG)
 
 	// read new program counter vector
 	cpu.PC = cpu.read16(0xFFFE)
@@ -170,7 +197,7 @@ func (cpu *MG6502) NMI() {
 	cpu.SetFlag(FlagBreak, false)
 	cpu.SetFlag(FlagUnused, true)
 	cpu.SetFlag(FlagInterrupt, true)
-	cpu.pushFlag()
+	cpu.push(cpu.FLAG)
 
 	cpu.PC = cpu.read16(0xFFFA)
 
@@ -234,7 +261,7 @@ func (cpu *MG6502) Clock() {
 // This is a utility function to enable "step-by-step" execution, without manually
 // clocking every cycle
 func (cpu *MG6502) Complete() bool {
-	return false
+	return cpu.cycles == 0
 }
 
 // Attach CPU to bus
@@ -244,13 +271,148 @@ func (cpu *MG6502) Attach(bus *Bus) {
 
 // Disassemble a range of memory, with keys equivalent to instruction start
 // locations in memory
+// This is the disassembly function. Its workings are not required for emulation.
+// It is merely a convenience function to turn the binary instruction code into
+// human readable form. Its included as part of the emulator because it can take
+// advantage of many of the CPUs internal operations to do this.
 func (cpu *MG6502) Disassemble(start, end uint16) map[uint16]string {
-	return nil
+	addr := uint32(start)
+	var value, lo, hi uint8
+	lines := make(map[uint16]string)
+	var lineAddr uint16
+
+	hex := func(n uint32, d uint8) []byte {
+		s := []byte{'0', '0', '0', '0'}
+		for i := d - 1; i != 0; i-- {
+			s[i] = "0123456789ABCDEF"[n&0xF]
+			n >>= 4
+		}
+		return s
+	}
+
+	// Starting at the specified address we read an instruction
+	// byte, which in turn yields information from the lookup table
+	// as to how many additional bytes we need to read and what the
+	// addressing mode is. I need this info to assemble human readable
+	// syntax, which is different depending upon the addressing mode
+
+	// As the instruction is decoded, a std::string is assembled
+	// with the readable output
+	for addr <= uint32(end) {
+		lineAddr = uint16(addr)
+
+		sb := &strings.Builder{}
+		// Prefix line with instruction address
+		sb.WriteRune('$')
+		sb.Write(hex(addr, 4))
+		sb.WriteString(": ")
+
+		// Read instruction, and get its mnemonic name
+		opcode := cpu.bus.Read(uint16(addr), true)
+		addr++
+		sb.WriteString(cpu.lookup[opcode].name)
+		sb.WriteRune(' ')
+
+		// Get oprands from desired locations, and form the
+		// instruction based upon its addressing mode. These
+		// routines mimic the actual fetch routine of the
+		// 6502 in order to get accurate data as part of the
+		// instruction
+		switch cpu.lookup[opcode].addrMode {
+		case AddrModeIMP:
+			sb.WriteString(" {IMP}")
+		case AddrModeIMM:
+			value = cpu.bus.Read(uint16(addr), true)
+			addr++
+			sb.WriteString("#$")
+			sb.Write(hex(uint32(value), 2))
+			sb.WriteString(" {IMM}")
+		case AddrModeZP0:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = 0x00
+			sb.WriteRune('$')
+			sb.Write(hex(uint32(lo), 2))
+			sb.WriteString(" {ZP0}")
+		case AddrModeZPX:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = 0x00
+			sb.WriteRune('$')
+			sb.Write(hex(uint32(lo), 2))
+			sb.WriteString(", X {ZPX}")
+		case AddrModeZPY:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = 0x00
+			sb.WriteRune('$')
+			sb.Write(hex(uint32(lo), 2))
+			sb.WriteString(", Y {ZPY}")
+		case AddrModeIZX:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = 0x00
+			sb.WriteString("($")
+			sb.Write(hex(uint32(lo), 2))
+			sb.WriteString(", X) {IZX}")
+		case AddrModeIZY:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = 0x00
+			sb.WriteString("($")
+			sb.Write(hex(uint32(lo), 2))
+			sb.WriteString(", Y) {IZY}")
+		case AddrModeABS:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = cpu.bus.Read(uint16(addr), true)
+			addr++
+			sb.WriteRune('$')
+			sb.Write(hex(uint32(hi)<<8|uint32(lo), 4))
+			sb.WriteString(" {ABS}")
+		case AddrModeABX:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = cpu.bus.Read(uint16(addr), true)
+			addr++
+			sb.WriteRune('$')
+			sb.Write(hex(uint32(hi)<<8|uint32(lo), 4))
+			sb.WriteString(", X {ABX}")
+		case AddrModeABY:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = cpu.bus.Read(uint16(addr), true)
+			addr++
+			sb.WriteRune('$')
+			sb.Write(hex(uint32(hi)<<8|uint32(lo), 4))
+			sb.WriteString(", Y {ABY}")
+		case AddrModeIND:
+			lo = cpu.bus.Read(uint16(addr), true)
+			addr++
+			hi = cpu.bus.Read(uint16(addr), true)
+			addr++
+			sb.WriteString("($")
+			sb.Write(hex(uint32(hi)<<8|uint32(lo), 4))
+			sb.WriteString(") {IND}")
+		case AddrModeREL:
+			value = cpu.bus.Read(uint16(addr), true)
+			addr++
+			sb.WriteRune('$')
+			sb.Write(hex(uint32(value), 2))
+			sb.WriteString(" [$")
+			sb.Write(hex(addr+uint32(value), 4))
+			sb.WriteString("] {REL}")
+		}
+
+		lines[lineAddr] = sb.String()
+	}
+
+	return lines
 }
 
 // GetFlag returns the flag
 func (cpu *MG6502) GetFlag(flag uint8) uint8 {
-	if cpu.FLAG & flag > 0 {
+	if cpu.FLAG&flag > 0 {
 		return 1
 	} else {
 		return 0
@@ -266,6 +428,18 @@ func (cpu *MG6502) SetFlag(flag uint8, v bool) {
 	}
 }
 
+// push data byte to stack
+func (cpu *MG6502) push(data uint8) {
+	cpu.write(0x0100+uint16(cpu.SP), data)
+	cpu.SP--
+}
+
+// pop data from stack
+func (cpu *MG6502) pop() uint8 {
+	cpu.SP++
+	return cpu.read(0x0100 + uint16(cpu.SP))
+}
+
 // push program counter to the stack
 func (cpu *MG6502) pushPC() {
 	cpu.write(0x0100+uint16(cpu.SP), uint8((cpu.PC>>8)&0x00FF))
@@ -274,10 +448,11 @@ func (cpu *MG6502) pushPC() {
 	cpu.SP--
 }
 
-// push status register to the stack
-func (cpu *MG6502) pushFlag() {
-	cpu.write(0x0100+uint16(cpu.SP), cpu.FLAG)
-	cpu.SP--
+// pop program counter from the stack
+func (cpu *MG6502) popPC() {
+	cpu.SP++
+	cpu.PC = cpu.read16(0x0100 + uint16(cpu.SP))
+	cpu.SP++
 }
 
 // communication with bus
@@ -318,7 +493,7 @@ func (cpu *MG6502) write(addr uint16, data uint8) {
 // is a variable global to the CPU, and is set by calling this
 // function. It also returns it for convenience.
 func (cpu *MG6502) fetch() uint8 {
-	if !cpu.lookup[cpu.opcode].imm {
+	if cpu.lookup[cpu.opcode].addrMode != AddrModeIMP {
 		cpu.fetched = cpu.read(cpu.addrAbs)
 	}
 	return cpu.fetched

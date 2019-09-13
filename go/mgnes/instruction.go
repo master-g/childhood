@@ -20,12 +20,13 @@
 
 package mgnes
 
+// Instruction contains information of a 6502 opcode
 type Instruction struct {
-	name   string
-	op     func(cpu *MG6502) uint8
-	am     func(cpu *MG6502) uint8
-	cycles uint8
-	imp    bool
+	name     string
+	op       func(cpu *MG6502) uint8
+	am       func(cpu *MG6502) uint8
+	cycles   uint8
+	addrMode int
 }
 
 // Addressing modes ===========================================================
@@ -343,11 +344,11 @@ func opAND(cpu *MG6502) uint8 {
 func opASL(cpu *MG6502) uint8 {
 	cpu.fetch()
 	cpu.temp = uint16(cpu.fetched) << 1
-	cpu.SetFlag(FlagCarry, (cpu.temp&0xFF00) > 0)
-	cpu.SetFlag(FlagZero, (cpu.temp&0x00FF) == 0x00)
-	cpu.SetFlag(FlagNegative, (cpu.temp&0x80) != 0)
+	cpu.SetFlag(FlagCarry, cpu.temp&0xFF00 > 0)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x80 != 0)
 
-	if cpu.lookup[cpu.opcode].imp {
+	if cpu.lookup[cpu.opcode].addrMode == AddrModeIMP {
 		cpu.A = uint8(cpu.temp & 0x00FF)
 	} else {
 		cpu.write(cpu.addrAbs, uint8(cpu.temp&0x00FF))
@@ -403,208 +404,574 @@ func opBEQ(cpu *MG6502) uint8 {
 	return 0
 }
 
+// Instruction: Bit Test
+// Function: Z = mem[addr] & A, S = mem[addr] & 10000000b, V = mem[addr] >> 010000000b
+// Flags Out: Z, S, V
 func opBIT(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.temp = uint16(cpu.A & cpu.fetched)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.fetched&(1<<7) != 0)
+	cpu.SetFlag(FlagOverflow, cpu.fetched&(1<<6) != 0)
 	return 0
 }
 
+// Instruction: Branch if Negative
+// Function: if N == 1 { pc = addr }
 func opBMI(cpu *MG6502) uint8 {
+	if cpu.GetFlag(FlagNegative) == 1 {
+		cpu.cycles++
+		cpu.addrAbs = cpu.PC + cpu.addrRel
+
+		if cpu.addrAbs&0xFF00 != cpu.PC&0xFF00 {
+			cpu.cycles++
+		}
+
+		cpu.PC = cpu.addrAbs
+	}
 	return 0
 }
 
+// Instruction: Branch if Not Equal
+// Function: if Z == 0 { pc = addr }
 func opBNE(cpu *MG6502) uint8 {
+	if cpu.GetFlag(FlagZero) == 0 {
+		cpu.cycles++
+		cpu.addrAbs = cpu.PC + cpu.addrRel
+		if cpu.addrAbs&0xFF00 != cpu.PC&0xFF00 {
+			cpu.cycles++
+		}
+
+		cpu.PC = cpu.addrAbs
+	}
 	return 0
 }
 
+// Instruction: Branch if Positive
+// Function: if N == 0 { pc = addr }
 func opBPL(cpu *MG6502) uint8 {
+	if cpu.GetFlag(FlagNegative) == 0 {
+		cpu.cycles++
+		cpu.addrAbs = cpu.PC + cpu.addrRel
+
+		if cpu.addrAbs&0xFF00 != cpu.PC&0xFF00 {
+			cpu.cycles++
+		}
+
+		cpu.PC = cpu.addrAbs
+	}
 	return 0
 }
 
+// Instruction: Break
+// Function: Program Sourced Interrupt
 func opBRK(cpu *MG6502) uint8 {
+	cpu.PC++
+
+	cpu.SetFlag(FlagInterrupt, true)
+	cpu.pushPC()
+
+	cpu.SetFlag(FlagBreak, true)
+	cpu.push(cpu.FLAG)
+	cpu.SetFlag(FlagBreak, false)
+
+	cpu.PC = cpu.read16(0xFFFE)
+
 	return 0
 }
 
+// Instruction: Branch if Overflow Clear
+// Function: if V == 0 { pc = address }
 func opBVC(cpu *MG6502) uint8 {
+	if cpu.GetFlag(FlagOverflow) == 0 {
+		cpu.cycles++
+		cpu.addrAbs = cpu.PC + cpu.addrRel
+
+		if cpu.addrAbs&0xFF00 != cpu.PC&0xFF00 {
+			cpu.cycles++
+		}
+
+		cpu.PC = cpu.addrAbs
+	}
 	return 0
 }
 
+// Instruction: Branch if Overflow Set
+// Function: if V == 1 { pc = address }
 func opBVS(cpu *MG6502) uint8 {
+	if cpu.GetFlag(FlagOverflow) == 1 {
+		cpu.cycles++
+		cpu.addrAbs = cpu.PC + cpu.addrRel
+
+		if cpu.addrAbs&0xFF00 != cpu.PC&0xFF00 {
+			cpu.cycles++
+		}
+
+		cpu.PC = cpu.addrAbs
+	}
 	return 0
 }
 
+// Instruction: Clear Carry Flag
+// Function: C = 0
 func opCLC(cpu *MG6502) uint8 {
+	cpu.SetFlag(FlagCarry, false)
 	return 0
 }
 
+// Instruction: Clear Decimal Flag
+// Function: D = 0
 func opCLD(cpu *MG6502) uint8 {
+	cpu.SetFlag(FlagDecimal, false)
 	return 0
 }
 
+// Instruction: Disable Interrupts / Clear Interrupt Flag
 func opCLI(cpu *MG6502) uint8 {
+	cpu.SetFlag(FlagInterrupt, false)
 	return 0
 }
 
+// Instruction: Clear Overflow Flag
+// Function: V = 0
 func opCLV(cpu *MG6502) uint8 {
+	cpu.SetFlag(FlagOverflow, false)
 	return 0
 }
 
+// Instruction: Compare Accumulator
+// Function: C <- A >= M	Z <- (A - M) == 0
 func opCMP(cpu *MG6502) uint8 {
-	return 0
+	cpu.fetch()
+	cpu.temp = uint16(cpu.A) - uint16(cpu.fetched)
+	cpu.SetFlag(FlagCarry, cpu.A >= cpu.fetched)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x0000)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
+	return 1
 }
 
+// Instruction: Compare X Register
+// Function: C <- X >= M	Z <- (X - M) == 0
+// Flags Out: N, C, Z
 func opCPX(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.temp = uint16(cpu.X) - uint16(cpu.fetched)
+	cpu.SetFlag(FlagCarry, cpu.X >= cpu.fetched)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x0000)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
 	return 0
 }
 
+// Instruction: Compare Y Register
+// Function: C <- Y >= M	Z <- (Y - M) == 0
+// Flags Out: N, C, Z
 func opCPY(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.temp = uint16(cpu.Y) - uint16(cpu.fetched)
+	cpu.SetFlag(FlagCarry, cpu.Y >= cpu.fetched)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x0000)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
 	return 0
 }
 
+// Instruction: Decrement Value at Memory Location
+// Function: M = M - 1
+// Flags Out: N, Z
 func opDEC(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.temp = uint16(cpu.fetched - 1)
+	cpu.write(cpu.addrAbs, uint8(cpu.temp&0x00FF))
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x0000)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
 	return 0
 }
 
+// Instruction: Decrement X Register
+// Function: X = X - 1
+// Flags Out: N, Z
 func opDEX(cpu *MG6502) uint8 {
+	cpu.X--
+	cpu.SetFlag(FlagZero, cpu.X == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.X&0x80 != 0)
 	return 0
 }
 
+// Instruction: Decrement Y Register
+// Function: Y = Y - 1
+// Flags Out: N, Z
 func opDEY(cpu *MG6502) uint8 {
+	cpu.Y--
+	cpu.SetFlag(FlagZero, cpu.Y == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.Y&0x80 != 0)
 	return 0
 }
 
+// Instruction: Bitwise Logic XOR
+// Function: A = A xor M
+// Flags Out: N, Z
 func opEOR(cpu *MG6502) uint8 {
-	return 0
+	cpu.fetch()
+	cpu.A ^= cpu.fetched
+	cpu.SetFlag(FlagZero, cpu.A == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.A&0x80 != 0)
+	return 1
 }
 
+// Instruction: Increment Value at Memory Location
+// Function: M = M + 1
+// Flags Out: N, Z
 func opINC(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.temp = uint16(cpu.fetched + 1)
+	cpu.write(cpu.addrAbs, uint8(cpu.temp&0x00FF))
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x0000)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
 	return 0
 }
 
+// Instruction: Increment X Register
+// Function: X = X + 1
+// Flags Out: N, Z
 func opINX(cpu *MG6502) uint8 {
+	cpu.X++
+	cpu.SetFlag(FlagZero, cpu.X == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.X&0x80 != 0)
 	return 0
 }
 
+// Instruction: Increment Y Register
+// Function: Y = Y + 1
+// Flags Out: N, Z
 func opINY(cpu *MG6502) uint8 {
+	cpu.Y++
+	cpu.SetFlag(FlagZero, cpu.Y == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.Y&0x80 != 0)
 	return 0
 }
 
+// Instruction: Jump to Location
+// Function: pc = address
 func opJMP(cpu *MG6502) uint8 {
+	cpu.PC = cpu.addrAbs
 	return 0
 }
 
+// Instruction: Jump to Sub-Routine
+// Function: Push current pc to stack, pc = address
 func opJSR(cpu *MG6502) uint8 {
+	cpu.PC--
+	cpu.pushPC()
+	cpu.PC = cpu.addrAbs
 	return 0
 }
 
+// Instruction: Load The Accumulator
+// Function: A = M
+// Flags Out: N, Z
 func opLDA(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.A = cpu.fetched
+	cpu.SetFlag(FlagZero, cpu.A == 0)
+	cpu.SetFlag(FlagNegative, cpu.A&0x80 != 0)
 	return 0
 }
 
+// Instruction: Load The X Register
+// Function: X = M
+// Flags Out: N, Z
 func opLDX(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.X = cpu.fetched
+	cpu.SetFlag(FlagZero, cpu.X == 0)
+	cpu.SetFlag(FlagNegative, cpu.X&0x80 != 0)
 	return 0
 }
 
+// Instruction: Load The Y Register
+// Function: Y = M
+// Flags Out: N, Z
 func opLDY(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.Y = cpu.fetched
+	cpu.SetFlag(FlagZero, cpu.Y == 0)
+	cpu.SetFlag(FlagNegative, cpu.Y&0x80 != 0)
 	return 0
 }
 
+// Instruction: Logical Shift Right
+// Function: 0 -> addr >> 1 -> C
 func opLSR(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.SetFlag(FlagCarry, cpu.fetched&0x01 != 0)
+	cpu.temp = uint16(cpu.fetched >> 1)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x0000)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
+	if cpu.lookup[cpu.opcode].addrMode == AddrModeIMP {
+		cpu.A = uint8(cpu.temp & 0x00FF)
+	} else {
+		cpu.write(cpu.addrAbs, uint8(cpu.temp&0x00FF))
+	}
 	return 0
 }
 
+// Instruction: No Operation
 func opNOP(cpu *MG6502) uint8 {
+	// Sadly not all NOPs are equal, Ive added a few here
+	// based on https://wiki.nesdev.com/w/index.php/CPU_unofficial_opcodes
+	// and will add more based on game compatibility, and ultimately
+	// I'd like to cover all illegal opcodes too
+	switch cpu.opcode {
+	case 0x1C, 0x3C, 0x5C, 0x7C, 0xDC, 0xFC:
+		return 1
+	}
 	return 0
 }
 
+// Instruction: Bitwise Logic OR
+// Function: A = A | M
+// Flags Out: N, Z
 func opORA(cpu *MG6502) uint8 {
-	return 0
+	cpu.fetch()
+	cpu.A |= cpu.fetched
+	cpu.SetFlag(FlagZero, cpu.A == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.A&0x80 != 0)
+	return 1
 }
 
+// Instruction: Push Accumulator to Stack
+// Function: A -> stack
 func opPHA(cpu *MG6502) uint8 {
+	cpu.push(cpu.A)
 	return 0
 }
 
+// Instruction: Push Status Register to Stack
+// Function: status -> stack
+// Note: Break flag is set to 1 before push
 func opPHP(cpu *MG6502) uint8 {
+	cpu.SetFlag(FlagBreak, true)
+	cpu.SetFlag(FlagUnused, true)
+	cpu.push(cpu.FLAG)
+	cpu.SetFlag(FlagBreak, false)
+	cpu.SetFlag(FlagUnused, false)
 	return 0
 }
 
+// Instruction: Pop Accumulator off Stack
+// Function: A <- stack
+// Flags Out: N, Z
 func opPLA(cpu *MG6502) uint8 {
+	cpu.A = cpu.pop()
+	cpu.SetFlag(FlagZero, cpu.A == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.A&0x80 != 0)
 	return 0
 }
 
+// Instruction: Pop Status Register off Stack
+// Function: Status <- stack
 func opPLP(cpu *MG6502) uint8 {
+	cpu.FLAG = cpu.pop()
+	cpu.SetFlag(FlagUnused, true)
 	return 0
 }
 
+// Instruction: Rotate Left
+// Function: C <- address << 1 <- C
+// Flags Out: N, Z, C
 func opROL(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.temp = uint16(cpu.fetched<<1) | uint16(cpu.GetFlag(FlagCarry))
+	cpu.SetFlag(FlagCarry, cpu.temp&0xFF00 != 0)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x0000)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
+	if cpu.lookup[cpu.opcode].addrMode == AddrModeIMP {
+		cpu.A = uint8(cpu.temp & 0x00FF)
+	} else {
+		cpu.write(cpu.addrAbs, uint8(cpu.temp&0x00FF))
+	}
 	return 0
 }
 
+// Instruction: Rotate Right
+// Function: C -> address >> 1 -> C
 func opROR(cpu *MG6502) uint8 {
+	cpu.fetch()
+	cpu.temp = uint16(cpu.fetched>>1) | uint16(cpu.GetFlag(FlagCarry)<<7)
+	cpu.SetFlag(FlagCarry, cpu.fetched&0x01 != 0)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
+	if cpu.lookup[cpu.opcode].addrMode == AddrModeIMP {
+		cpu.A = uint8(cpu.temp & 0x00FF)
+	} else {
+		cpu.write(cpu.addrAbs, uint8(cpu.temp&0x00FF))
+	}
 	return 0
 }
 
+// Instruction: Return from Interrupt
+// Function:
 func opRTI(cpu *MG6502) uint8 {
+	cpu.FLAG = cpu.pop()
+	cpu.FLAG &= ^FlagBreak
+	cpu.FLAG &= ^FlagUnused
+
+	cpu.popPC()
 	return 0
 }
 
+// Instruction: Return from Subroutine
 func opRTS(cpu *MG6502) uint8 {
+	cpu.popPC()
+	cpu.PC++
 	return 0
 }
 
+// Instruction: Subtraction with Borrow In
+// Function:    A = A - M - (1 - C)
+// Flags Out:   C, V, N, Z
+//
+// Explanation:
+// Given the explanation for ADC above, we can reorganise our data
+// to use the same computation for addition, for subtraction by multiplying
+// the data by -1, i.e. make it negative
+//
+// A = A - M - (1 - C)  ->  A = A + -1 * (M - (1 - C))  ->  A = A + (-M + 1 + C)
+//
+// To make a signed positive number negative, we can invert the bits and add 1
+// (OK, I lied, a little bit of 1 and 2s complement :P)
+//
+//  5 = 00000101
+// -5 = 11111010 + 00000001 = 11111011 (or 251 in our 0 to 255 range)
+//
+// The range is actually unimportant, because if I take the value 15, and add 251
+// to it, given we wrap around at 256, the result is 10, so it has effectively
+// subtracted 5, which was the original intention. (15 + 251) % 256 = 10
+//
+// Note that the equation above used (1-C), but this got converted to + 1 + C.
+// This means we already have the +1, so all we need to do is invert the bits
+// of M, the data(!) therfore we can simply add, exactly the same way we did
+// before.
 func opSBC(cpu *MG6502) uint8 {
-	return 0
+	cpu.fetch()
+
+	// Operating in 16-bit domain to capture carry out
+
+	// We can invert the bottom 8 bit with bitwise xor
+	value := uint16(cpu.fetched) ^ 0x00FF
+
+	// Notice this is exactly the same as addition from here
+	cpu.temp = uint16(cpu.A) + value + uint16(cpu.GetFlag(FlagCarry))
+	cpu.SetFlag(FlagCarry, cpu.temp&0xFF00 != 0)
+	cpu.SetFlag(FlagZero, cpu.temp&0x00FF == 0)
+	overflow := (cpu.temp ^ uint16(cpu.A)) & ((cpu.temp ^ value) & 0x0080)
+	cpu.SetFlag(FlagOverflow, overflow != 0)
+	cpu.SetFlag(FlagNegative, cpu.temp&0x0080 != 0)
+	cpu.A = uint8(cpu.temp & 0x00FF)
+
+	return 1
 }
 
+// Instruction: Set Carry Flag
+// Function: C = 1
 func opSEC(cpu *MG6502) uint8 {
+	cpu.SetFlag(FlagCarry, true)
 	return 0
 }
 
+// Instruction: Set Decimal Flag
+// Function: D = 1
 func opSED(cpu *MG6502) uint8 {
+	cpu.SetFlag(FlagDecimal, true)
 	return 0
 }
 
+// Instruction: Set Interrupt Flag / Enable Interrupts
+// Function: I = 1
 func opSEI(cpu *MG6502) uint8 {
+	cpu.SetFlag(FlagInterrupt, true)
 	return 0
 }
 
+// Instruction: Store Accumulator at Address
+// Function: M = A
 func opSTA(cpu *MG6502) uint8 {
+	cpu.write(cpu.addrAbs, cpu.A)
 	return 0
 }
 
+// Instruction: Store X Register at Address
+// Function: M = X
 func opSTX(cpu *MG6502) uint8 {
+	cpu.write(cpu.addrAbs, cpu.X)
 	return 0
 }
 
+// Instruction: Store Y Register at Address
+// Function: M = Y
 func opSTY(cpu *MG6502) uint8 {
+	cpu.write(cpu.addrAbs, cpu.Y)
 	return 0
 }
 
+// Instruction: Transfer Accumulator to X Register
+// Function: X = A
+// Flags Out: N, Z
 func opTAX(cpu *MG6502) uint8 {
+	cpu.X = cpu.A
+	cpu.SetFlag(FlagZero, cpu.X == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.X&0x80 != 0)
 	return 0
 }
 
+// Instruction: Transfer Accumulator to Y Register
+// Function: Y = A
+// Flags Out: N, Z
 func opTAY(cpu *MG6502) uint8 {
+	cpu.Y = cpu.A
+	cpu.SetFlag(FlagZero, cpu.Y == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.Y&0x80 != 0)
 	return 0
 }
 
+// Instruction: Transfer Stack Pointer to X Register
+// Function: X = stack pointer
 func opTSX(cpu *MG6502) uint8 {
+	cpu.X = cpu.SP
+	cpu.SetFlag(FlagZero, cpu.X == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.X&0x80 != 0)
 	return 0
 }
 
+// Instruction: Transfer X Register to Accumulator
+// Function: A = X
+// Flags Out: N, Z
 func opTXA(cpu *MG6502) uint8 {
+	cpu.A = cpu.X
+	cpu.SetFlag(FlagZero, cpu.A == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.A&0x80 != 0)
 	return 0
 }
 
+// Instruction: Transfer X Register to Stack Pointer
+// Function: stack pointer = X
 func opTXS(cpu *MG6502) uint8 {
+	cpu.SP = cpu.X
 	return 0
 }
 
+// Instruction: Transfer Y Register to Accumulator
+// Function: A = Y
+// Flags Out: N, Z
 func opTYA(cpu *MG6502) uint8 {
+	cpu.A = cpu.Y
+	cpu.SetFlag(FlagZero, cpu.A == 0x00)
+	cpu.SetFlag(FlagNegative, cpu.A&0x80 != 0)
 	return 0
 }
 
 // capture all "unofficial" opcodes with this function.
 // It is functionally identical to a NOP
 func opXXX(cpu *MG6502) uint8 {
+	_ = cpu
 	return 0
 }
