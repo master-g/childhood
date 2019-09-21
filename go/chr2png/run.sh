@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
 go build
-./chr2png -c ../../example/mario.chr -o dump.png
+./chr2png --chr ../../example/mario.chr --out dump.png

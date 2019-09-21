@@ -9,9 +9,8 @@ import (
 	"io"
 	"math/bits"
 	"os"
-	"sort"
 
-	"gopkg.in/urfave/cli.v2"
+	flag "github.com/spf13/pflag"
 )
 
 const (
@@ -28,59 +27,23 @@ var (
 )
 
 func main() {
-	app := &cli.App{
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "chr",
-				Aliases: []string{"c"},
-				Usage:   "chr file to convert",
-			},
-			&cli.StringFlag{
-				Name:    "pal",
-				Aliases: []string{"p"},
-				Usage:   "palette",
-				Value:   "RGB",
-			},
-			&cli.StringFlag{
-				Name:    "sp",
-				Aliases: []string{"s"},
-				Usage:   "sprite palette",
-				Value:   "22271618",
-			},
-			&cli.StringFlag{
-				Name:    "out",
-				Aliases: []string{"o"},
-				Usage:   "output file",
-				Value:   "chr",
-			},
-		},
-		Name:    "chr2png",
-		Usage:   "Convert NES chr file to png",
-		Version: "v0.0.1",
-		Action: func(c *cli.Context) error {
-			chrFile := c.String("chr")
-			palFile := c.String("pal")
-			sp := c.String("sp")
-			outFile = c.String("out")
+	chr := flag.String("chr", "", "chr file to convert")
+	pal := flag.String("pal", "RGB", "palette format")
+	sprpal := flag.String("sp", "22271618", "sprite palette")
+	out := flag.String("out", "chr", "output file")
+	flag.Parse()
 
-			if chrFile == "" || outFile == "" {
-				cli.ShowAppHelp(c)
-				return cli.Exit("", 86)
-			}
-
-			// load sprite palette
-			loadSpritePalette(sp)
-			// load palette
-			loadPalette(palFile)
-			// process CHR file
-			processCHR(chrFile)
-
-			return nil
-		},
+	if *chr == "" || *out == "" {
+		flag.Usage()
+		os.Exit(86)
 	}
 
-	sort.Sort(cli.FlagsByName(app.Flags))
-	app.Run(os.Args)
+	// load sprite palette
+	loadSpritePalette(*sprpal)
+	// load palette
+	loadPalette(*pal)
+	// process CHR file
+	processCHR(*chr)
 }
 
 func loadSpritePalette(sp string) {
