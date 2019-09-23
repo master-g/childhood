@@ -21,6 +21,6 @@
 package mgnes
 
 type Disassembly struct {
-	Addr uint16
-	Code string
+	Index []uint16
+	Lines map[uint16]string
 }

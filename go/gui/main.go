@@ -33,7 +33,7 @@ import (
 var (
 	cpu           *mgnes.MG6502
 	bus           *mgnes.Bus
-	disassembly   []*mgnes.Disassembly
+	disassembly   *mgnes.Disassembly
 	paragraphCpu  *widgets.Paragraph
 	paragraphCode *widgets.Paragraph
 	paragraphRam0 *widgets.Paragraph
