@@ -34,7 +34,7 @@ var (
 	cpu           *pkg.MG6502
 	bus           *pkg.Bus
 	disassembly   *pkg.Disassembly
-	paragraphCpu  *widgets.Paragraph
+	paragraphCPU  *widgets.Paragraph
 	paragraphCode *widgets.Paragraph
 	paragraphRam0 *widgets.Paragraph
 	paragraphRam1 *widgets.Paragraph
@@ -43,7 +43,16 @@ var (
 
 func renderCpu(p *widgets.Paragraph) {
 	sb := &strings.Builder{}
-	flags := []uint8{pkg.FlagNegative, pkg.FlagOverflow, pkg.FlagUnused, pkg.FlagBreak, pkg.FlagDecimal, pkg.FlagInterrupt, pkg.FlagZero, pkg.FlagCarry}
+	flags := []uint8{
+		pkg.FlagNegative,
+		pkg.FlagOverflow,
+		pkg.FlagUnused,
+		pkg.FlagBreak,
+		pkg.FlagDecimal,
+		pkg.FlagInterrupt,
+		pkg.FlagZero,
+		pkg.FlagCarry,
+	}
 	symbols := []rune{'N', 'V', '-', 'B', 'D', 'I', 'Z', 'C'}
 
 	sb.WriteString("STATUS: ")
@@ -117,14 +126,14 @@ func renderTips(p *widgets.Paragraph) {
 func draw() {
 	renderRam(paragraphRam0, 0x0000, 16, 16)
 	renderRam(paragraphRam1, 0x8000, 16, 16)
-	renderCpu(paragraphCpu)
+	renderCpu(paragraphCPU)
 	renderCode(paragraphCode)
 	renderTips(paragraphTips)
 
-	ui.Render(paragraphRam0, paragraphRam1, paragraphCpu, paragraphCode, paragraphCode, paragraphTips)
+	ui.Render(paragraphRam0, paragraphRam1, paragraphCPU, paragraphCode, paragraphCode, paragraphTips)
 }
 
-func loadCpu() {
+func loadCPU() {
 	// create cpu and bus
 	cpu = pkg.NewMG6502()
 	if cpu == nil {
@@ -165,9 +174,9 @@ func initLayout() {
 	paragraphRam1.SetRect(0, 18, 56, 36)
 
 	// CPU
-	paragraphCpu = widgets.NewParagraph()
-	paragraphCpu.Title = "CPU"
-	paragraphCpu.SetRect(56, 0, 56+34, 7)
+	paragraphCPU = widgets.NewParagraph()
+	paragraphCPU.Title = "CPU"
+	paragraphCPU.SetRect(56, 0, 56+34, 7)
 
 	// Code
 	paragraphCode = widgets.NewParagraph()
@@ -187,24 +196,24 @@ func main() {
 	defer ui.Close()
 
 	initLayout()
-	loadCpu()
+	loadCPU()
 
 	draw()
 
 	for e := range ui.PollEvents() {
 		if e.Type == ui.KeyboardEvent {
-			if e.ID == "q" || e.ID == "<C-c>" {
+			if e.ID == "q" || e.ID == "Q" || e.ID == "<C-c>" {
 				break
 			} else if e.ID == "<Space>" {
 				cpu.Clock()
 				for !cpu.Complete() {
 					cpu.Clock()
 				}
-			} else if e.ID == "r" {
+			} else if e.ID == "r" || e.ID == "R" {
 				cpu.Reset()
-			} else if e.ID == "i" {
+			} else if e.ID == "i" || e.ID == "I" {
 				cpu.IRQ()
-			} else if e.ID == "n" {
+			} else if e.ID == "n" || e.ID == "N" {
 				cpu.NMI()
 			}
 			draw()
