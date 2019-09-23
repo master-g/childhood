@@ -275,10 +275,10 @@ func (cpu *MG6502) Attach(bus *Bus) {
 // It is merely a convenience function to turn the binary instruction code into
 // human readable form. Its included as part of the emulator because it can take
 // advantage of many of the CPUs internal operations to do this.
-func (cpu *MG6502) Disassemble(start, end uint16) map[uint16]string {
+func (cpu *MG6502) Disassemble(start, end uint16) []*Disassembly {
 	addr := uint32(start)
 	var value, lo, hi uint8
-	lines := make(map[uint16]string)
+	lines := make([]*Disassembly, 0)
 	var lineAddr uint16
 
 	hex := func(n uint32, d uint8) []byte {
@@ -404,7 +404,11 @@ func (cpu *MG6502) Disassemble(start, end uint16) map[uint16]string {
 			sb.WriteString("] {REL}")
 		}
 
-		lines[lineAddr] = sb.String()
+		line := &Disassembly{
+			Addr: lineAddr,
+			Code: sb.String(),
+		}
+		lines = append(lines, line)
 	}
 
 	return lines

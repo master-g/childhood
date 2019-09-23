@@ -20,35 +20,7 @@
 
 package mgnes
 
-type Logger interface {
-	Log(msg string)
+type Disassembly struct {
+	Addr uint16
+	Code string
 }
-
-type defaultLogger struct {
-
-}
-
-func (l *defaultLogger) Log(msg string) {
-
-}
-
-var (
-	defaultLoggerImpl = &defaultLogger{}
-	logger Logger = defaultLoggerImpl
-
-	logEnable = false
-)
-
-
-func SetLogger(impl Logger) {
-	if impl == nil {
-		logger = defaultLoggerImpl
-	} else {
-		logger = impl
-	}
-}
-
-func SetLogEnable(enable bool) {
-	logEnable = enable
-}
-
