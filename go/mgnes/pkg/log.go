@@ -18,34 +18,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package nes6502
+package pkg
 
-import (
-	"testing"
+type Logger interface {
+	Log(msg string)
+}
+
+type defaultLogger struct {
+
+}
+
+func (l *defaultLogger) Log(msg string) {
+
+}
+
+var (
+	defaultLoggerImpl = &defaultLogger{}
+	logger Logger = defaultLoggerImpl
+
+	logEnable = false
 )
 
-func TestBus_Read(t *testing.T) {
-	bus := NewBus()
-	vec1 := bus.Read(0, true)
-	if vec1 != 0 {
-		t.Errorf("Read() = %v, want 0", vec1)
-	}
 
-	bus.Write(1, 0xDE)
-	vec2 := bus.Read(1, true)
-	if vec2 != 0xDE {
-		t.Errorf("Read() = %v, want 0xDE", vec2)
-	}
-
-	bus.Write(2, 0xAD)
-	vec3 := bus.Read(2, true)
-	if vec3 != 0xAD {
-		t.Errorf("Read() = %v, want 0xAD", vec3)
-	}
-
-	bus.Write(MemoryCapacity-1, 0x22)
-	vec4 := bus.Read(MemoryCapacity-1, true)
-	if vec4 != 0x22 {
-		t.Errorf("Read() = %v, want 0x22", vec4)
+func SetLogger(impl Logger) {
+	if impl == nil {
+		logger = defaultLoggerImpl
+	} else {
+		logger = impl
 	}
 }
+
+func SetLogEnable(enable bool) {
+	logEnable = enable
+}
+

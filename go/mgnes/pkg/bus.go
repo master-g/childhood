@@ -18,9 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package mgnes
+package pkg
 
-type Disassembly struct {
-	Index []uint16
-	Lines map[uint16]string
+// Bus transmit data between cpu and other components in the NES console
+type Bus struct {
+	ram Memory
+}
+
+// NewBus create and return a new bus reference
+func NewBus() *Bus {
+	return &Bus{
+		ram: NewPlainMemory(),
+	}
+}
+
+// Write data to the bus
+func (bus *Bus) Write(addr uint16, data uint8) {
+	bus.ram.Write(addr, data)
+}
+
+// Read data from the bus
+func (bus *Bus) Read(addr uint16, readonly bool) uint8 {
+	return bus.ram.Read(addr)
 }

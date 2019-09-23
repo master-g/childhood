@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package mgnes
+package pkg
 
 // Instruction contains information of a 6502 opcode
 type Instruction struct {

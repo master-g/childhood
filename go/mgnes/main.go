@@ -23,50 +23,50 @@ package main
 import (
 	"fmt"
 	"log"
+	"mgnes/pkg"
 	"strings"
 
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
-	"github.com/master-g/childhood/go/mgnes"
 )
 
 var (
-	cpu           *mgnes.MG6502
-	bus           *mgnes.Bus
-	disassembly   *mgnes.Disassembly
+	cpu           *pkg.MG6502
+	bus           *pkg.Bus
+	disassembly   *pkg.Disassembly
 	paragraphCpu  *widgets.Paragraph
 	paragraphCode *widgets.Paragraph
 	paragraphRam0 *widgets.Paragraph
 	paragraphRam1 *widgets.Paragraph
+	paragraphTips *widgets.Paragraph
 )
 
 func renderCpu(p *widgets.Paragraph) {
 	sb := &strings.Builder{}
-	sb.WriteString("[STATUS:](fg:white)")
-	sb.WriteRune(' ')
-	sb.WriteString("[N](fg:green)")
-	sb.WriteRune(' ')
-	sb.WriteString("[V](fg:red)")
-	sb.WriteRune(' ')
-	sb.WriteString("[U](fg:red)")
-	sb.WriteRune(' ')
-	sb.WriteString("[B](fg:red)")
-	sb.WriteRune(' ')
-	sb.WriteString("[D](fg:red)")
-	sb.WriteRune(' ')
-	sb.WriteString("[I](fg:red)")
-	sb.WriteRune(' ')
-	sb.WriteString("[N](fg:red)")
-	sb.WriteRune(' ')
-	sb.WriteString("[C](fg:red)")
+	flags := []uint8{pkg.FlagNegative, pkg.FlagOverflow, pkg.FlagUnused, pkg.FlagBreak, pkg.FlagDecimal, pkg.FlagInterrupt, pkg.FlagZero, pkg.FlagCarry}
+	symbols := []rune{'N', 'V', '-', 'B', 'D', 'I', 'Z', 'C'}
+
+	sb.WriteString("STATUS: ")
+	for i, f := range flags {
+		sb.WriteRune('[')
+		sb.WriteRune(symbols[i])
+		sb.WriteRune(']')
+		sb.WriteString("(fg:")
+		if cpu.GetFlag(f) != 0 {
+			sb.WriteString("green")
+		} else {
+			sb.WriteString("red")
+		}
+		sb.WriteString(") ")
+	}
 	sb.WriteRune('\n')
-	sb.WriteString("PC: $0x0000 SP: $0001")
+	sb.WriteString(fmt.Sprintf("PC: $0x%04X SP: $%04X", cpu.PC, cpu.SP))
 	sb.WriteRune('\n')
-	sb.WriteString("A: $0C [AD]")
+	sb.WriteString(fmt.Sprintf("A: $%02X [%d]", cpu.A, cpu.A))
 	sb.WriteRune('\n')
-	sb.WriteString("X: $0C [AD]")
+	sb.WriteString(fmt.Sprintf("X: $%02X [%d]", cpu.X, cpu.X))
 	sb.WriteRune('\n')
-	sb.WriteString("Y: $0C [AD] ")
+	sb.WriteString(fmt.Sprintf("Y: $%02X [%d] ", cpu.Y, cpu.Y))
 
 	p.Text = sb.String()
 }
@@ -87,7 +87,31 @@ func renderRam(p *widgets.Paragraph, addr uint16, numRow, numCol int) {
 }
 
 func renderCode(p *widgets.Paragraph) {
+	sb := strings.Builder{}
+	pc := cpu.PC
+	for i := pc - 6; i <= pc+34; i++ {
+		for i < 0 {
+			i += 0xFFFF
+		}
+		if i > 0xFFFF {
+			i = i % 0xFFFF
+		}
+		for j := 0; j < len(disassembly.Index); j++ {
+			if disassembly.Index[j] == i {
+				if i == pc {
+					sb.WriteString(fmt.Sprintf("[%s](fg:cyan)", disassembly.Lines[i]))
+				} else {
+					sb.WriteString(disassembly.Lines[i])
+				}
+				sb.WriteRune('\n')
+			}
+		}
+	}
+	p.Text = sb.String()
+}
 
+func renderTips(p *widgets.Paragraph) {
+	p.Text = "SPACE = Step Instruction    R = RESET    I = IRQ    N = NMI"
 }
 
 func draw() {
@@ -95,19 +119,20 @@ func draw() {
 	renderRam(paragraphRam1, 0x8000, 16, 16)
 	renderCpu(paragraphCpu)
 	renderCode(paragraphCode)
+	renderTips(paragraphTips)
 
-	ui.Render(paragraphRam0, paragraphRam1, paragraphCpu, paragraphCode, paragraphCode)
+	ui.Render(paragraphRam0, paragraphRam1, paragraphCpu, paragraphCode, paragraphCode, paragraphTips)
 }
 
 func loadCpu() {
 	// create cpu and bus
-	cpu = mgnes.NewMG6502()
+	cpu = pkg.NewMG6502()
 	if cpu == nil {
 		log.Fatal("could not create 6502")
 		return
 	}
 
-	bus = mgnes.NewBus()
+	bus = pkg.NewBus()
 	cpu.Attach(bus)
 
 	// load bytecode
@@ -142,12 +167,17 @@ func initLayout() {
 	// CPU
 	paragraphCpu = widgets.NewParagraph()
 	paragraphCpu.Title = "CPU"
-	paragraphCpu.SetRect(56, 0, 56+25, 7)
+	paragraphCpu.SetRect(56, 0, 56+34, 7)
 
 	// Code
 	paragraphCode = widgets.NewParagraph()
 	paragraphCode.Title = "Disassembly"
-	paragraphCode.SetRect(0, 36, 56, 36+8)
+	paragraphCode.SetRect(56, 7, 56+34, 7+29)
+
+	// Tips
+	paragraphTips = widgets.NewParagraph()
+	paragraphTips.Title = "Tips"
+	paragraphTips.SetRect(0, 36, 56+34, 39)
 }
 
 func main() {
@@ -166,8 +196,18 @@ func main() {
 			if e.ID == "q" || e.ID == "<C-c>" {
 				break
 			} else if e.ID == "<Space>" {
-				draw()
+				cpu.Clock()
+				for !cpu.Complete() {
+					cpu.Clock()
+				}
+			} else if e.ID == "r" {
+				cpu.Reset()
+			} else if e.ID == "i" {
+				cpu.IRQ()
+			} else if e.ID == "n" {
+				cpu.NMI()
 			}
+			draw()
 		}
 	}
 }

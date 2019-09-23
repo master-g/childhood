@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package mgnes
+package pkg
 
 func newInstructionSet() []*Instruction {
 	lookup := []*Instruction{

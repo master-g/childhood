@@ -18,55 +18,43 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package nes6502
+package pkg
 
 const (
-	// FlagNegative N
-	FlagNegative uint8 = 0x80
-	// FlagOverflow V
-	FlagOverflow uint8 = 0x40
-	// FlagUnused U
-	FlagUnused uint8 = 0x20
-	// FlagBreak B
-	FlagBreak uint8 = 0x10
-	// FlagDecimal D
-	FlagDecimal uint8 = 0x08
-	// FlagInterrupt I
-	FlagInterrupt uint8 = 0x04
-	// FlagZero Z
-	FlagZero uint8 = 0x02
-	// FlagCarry C
-	FlagCarry uint8 = 0x01
+	// MemoryCapacity the size of memory that a 6502 cpu can address
+	MemoryCapacity = 65536
 )
 
-// Registers in 6502 CPU
-type Registers struct {
-	// A accumulator
-	A uint8
-	// X index register
-	X uint8
-	// Y index register
-	Y uint8
-	// S stack pointer
-	S uint8
-	// PC program counter
-	PC uint16
-	// P processor status register
-	P uint8
+// Memory interface definition
+type Memory interface {
+	Reset()
+	Read(addr uint16) (value uint8)
+	Write(addr uint16, value uint8) (oldValue uint8)
 }
 
-// PowerUp set registers to power up state
-// except PC, which needs to be set by both cpu and memory state
-func (reg *Registers) PowerUp() {
-	reg.A = 0
-	reg.X = 0
-	reg.Y = 0
-	reg.S = 0xFD
-	reg.P = 0x34
+// PlainMemory 64KB of plain bytes
+type PlainMemory [MemoryCapacity]uint8
+
+// NewPlainMemory create and returns a plain memory reference
+func NewPlainMemory() *PlainMemory {
+	mem := &PlainMemory{}
+	mem.Reset()
+	return mem
 }
 
-func (reg *Registers) Reset() {
-
+func (m *PlainMemory) Reset() {
+	for i := 0; i < len(m); i++ {
+		m[i] = 0xFF
+	}
 }
 
-// http://nwidger.github.io/blog/post/writing-an-nes-emulator-in-go-part-1/
+func (m *PlainMemory) Read(addr uint16) (value uint8) {
+	return m[int(addr)%MemoryCapacity]
+}
+
+func (m *PlainMemory) Write(addr uint16, value uint8) (oldValue uint8) {
+	oldValue = m[int(addr)%MemoryCapacity]
+	m[int(addr)%MemoryCapacity] = value
+
+	return
+}

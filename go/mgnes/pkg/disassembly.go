@@ -18,28 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package nes6502
+package pkg
 
-// Bus transmit data between cpu and other components in the NES console
-type Bus struct {
-	cpu *NES6502
-	ram Memory
-}
-
-// NewBus create and return a new bus reference
-func NewBus() *Bus {
-	return &Bus{
-		cpu: NewNES6502(),
-		ram: NewPlainMemory(),
-	}
-}
-
-// Write data to the bus
-func (bus *Bus) Write(addr uint16, data uint8) {
-	bus.ram.write(addr, data)
-}
-
-// Read data from the bus
-func (bus *Bus) Read(addr uint16, readonly bool) uint8 {
-	return bus.ram.read(addr)
+type Disassembly struct {
+	Index []uint16
+	Lines map[uint16]string
 }
