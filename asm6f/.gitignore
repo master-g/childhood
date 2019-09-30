@@ -2,3 +2,4 @@
 *.o
 *.obj
 asm6f
+cmake-build-debug

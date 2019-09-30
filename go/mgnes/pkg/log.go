@@ -20,26 +20,29 @@
 
 package pkg
 
+import "fmt"
+
+// Logger interface for logging in this module
 type Logger interface {
 	Log(msg string)
 }
 
 type defaultLogger struct {
-
 }
 
+// Log default implementation
 func (l *defaultLogger) Log(msg string) {
-
+	fmt.Println(msg)
 }
 
 var (
-	defaultLoggerImpl = &defaultLogger{}
-	logger Logger = defaultLoggerImpl
+	defaultLoggerImpl        = &defaultLogger{}
+	logger            Logger = defaultLoggerImpl
 
 	logEnable = false
 )
 
-
+// SetLogger set logger instance, if pass in `nil`, a default logger will be use
 func SetLogger(impl Logger) {
 	if impl == nil {
 		logger = defaultLoggerImpl
@@ -48,7 +51,7 @@ func SetLogger(impl Logger) {
 	}
 }
 
+// SetLogEnable sets log flag
 func SetLogEnable(enable bool) {
 	logEnable = enable
 }
-
