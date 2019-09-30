@@ -107,10 +107,11 @@ func renderCode(p *widgets.Paragraph) {
 		}
 		for j := 0; j < len(disassembly.Index); j++ {
 			if disassembly.Index[j] == i {
+				line := disassembly.Stringify(i, 32)
 				if i == pc {
-					sb.WriteString(fmt.Sprintf("[%s](fg:cyan)", disassembly.Lines[i]))
+					sb.WriteString(fmt.Sprintf("[%s](fg:cyan)", line))
 				} else {
-					sb.WriteString(disassembly.Lines[i])
+					sb.WriteString(line)
 				}
 				sb.WriteRune('\n')
 			}

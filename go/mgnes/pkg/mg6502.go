@@ -281,7 +281,8 @@ func (cpu *MG6502) Disassemble(start, end uint16) *Disassembly {
 	var lineAddr uint16
 	disassembly := &Disassembly{
 		Index: []uint16{},
-		Lines: make(map[uint16]string),
+		Op:    make(map[uint16]string),
+		Desc:  make(map[uint16]string),
 	}
 
 	hex := func(n uint32, d uint8) []byte {
@@ -301,20 +302,22 @@ func (cpu *MG6502) Disassemble(start, end uint16) *Disassembly {
 
 	// As the instruction is decoded, a std::string is assembled
 	// with the readable output
+	sbOp := &strings.Builder{}
+	sbDesc := &strings.Builder{}
 	for addr <= uint32(end) {
 		lineAddr = uint16(addr)
 
-		sb := &strings.Builder{}
 		// Prefix line with instruction address
-		sb.WriteRune('$')
-		sb.Write(hex(addr, 4))
-		sb.WriteString(": ")
+		sbOp.WriteRune('$')
+		sbOp.Write(hex(addr, 4))
+		sbOp.WriteString(": ")
 
 		// Read instruction, and get its mnemonic name
 		opcode := cpu.bus.Read(uint16(addr), true)
+		opName := cpu.lookup[opcode].name
 		addr++
-		sb.WriteString(cpu.lookup[opcode].name)
-		sb.WriteRune(' ')
+		sbOp.WriteString(opName)
+		sbOp.WriteRune(' ')
 
 		// Get oprands from desired locations, and form the
 		// instruction based upon its addressing mode. These
@@ -323,92 +326,108 @@ func (cpu *MG6502) Disassemble(start, end uint16) *Disassembly {
 		// instruction
 		switch cpu.lookup[opcode].addrMode {
 		case AddrModeIMP:
-			sb.WriteString(" {IMP}")
+			sbDesc.WriteString("{IMP}")
 		case AddrModeIMM:
 			value = cpu.bus.Read(uint16(addr), true)
 			addr++
-			sb.WriteString("#$")
-			sb.Write(hex(uint32(value), 2))
-			sb.WriteString(" {IMM}")
+			sbOp.WriteString("#$")
+			sbOp.Write(hex(uint32(value), 2))
+			sbDesc.WriteString("{IMM}")
 		case AddrModeZP0:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = 0x00
-			sb.WriteRune('$')
-			sb.Write(hex(uint32(lo), 2))
-			sb.WriteString(" {ZP0}")
+			sbOp.WriteRune('$')
+			sbOp.Write(hex(uint32(lo), 2))
+			sbDesc.WriteString("{ZP0}")
 		case AddrModeZPX:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = 0x00
-			sb.WriteRune('$')
-			sb.Write(hex(uint32(lo), 2))
-			sb.WriteString(", X {ZPX}")
+			sbOp.WriteRune('$')
+			sbOp.Write(hex(uint32(lo), 2))
+			sbOp.WriteString(", X")
+			sbDesc.WriteString("{ZPX}")
 		case AddrModeZPY:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = 0x00
-			sb.WriteRune('$')
-			sb.Write(hex(uint32(lo), 2))
-			sb.WriteString(", Y {ZPY}")
+			sbOp.WriteRune('$')
+			sbOp.Write(hex(uint32(lo), 2))
+			sbOp.WriteString(", Y")
+			sbDesc.WriteString("{ZPY}")
 		case AddrModeIZX:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = 0x00
-			sb.WriteString("($")
-			sb.Write(hex(uint32(lo), 2))
-			sb.WriteString(", X) {IZX}")
+			sbOp.WriteString("($")
+			sbOp.Write(hex(uint32(lo), 2))
+			sbOp.WriteString(", X)")
+			sbDesc.WriteString("{IZX}")
 		case AddrModeIZY:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = 0x00
-			sb.WriteString("($")
-			sb.Write(hex(uint32(lo), 2))
-			sb.WriteString(", Y) {IZY}")
+			sbOp.WriteString("($")
+			sbOp.Write(hex(uint32(lo), 2))
+			sbOp.WriteString(", Y)")
+			sbDesc.WriteString("{IZY}")
 		case AddrModeABS:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = cpu.bus.Read(uint16(addr), true)
 			addr++
-			sb.WriteRune('$')
-			sb.Write(hex(uint32(hi)<<8|uint32(lo), 4))
-			sb.WriteString(" {ABS}")
+			sbOp.WriteRune('$')
+			sbOp.Write(hex(uint32(hi)<<8|uint32(lo), 4))
+			sbDesc.WriteString("{ABS}")
 		case AddrModeABX:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = cpu.bus.Read(uint16(addr), true)
 			addr++
-			sb.WriteRune('$')
-			sb.Write(hex(uint32(hi)<<8|uint32(lo), 4))
-			sb.WriteString(", X {ABX}")
+			sbOp.WriteRune('$')
+			sbOp.Write(hex(uint32(hi)<<8|uint32(lo), 4))
+			sbOp.WriteString(", X")
+			sbDesc.WriteString("{ABX}")
 		case AddrModeABY:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = cpu.bus.Read(uint16(addr), true)
 			addr++
-			sb.WriteRune('$')
-			sb.Write(hex(uint32(hi)<<8|uint32(lo), 4))
-			sb.WriteString(", Y {ABY}")
+			sbOp.WriteRune('$')
+			sbOp.Write(hex(uint32(hi)<<8|uint32(lo), 4))
+			sbOp.WriteString(", Y")
+			sbDesc.WriteString("{ABY}")
 		case AddrModeIND:
 			lo = cpu.bus.Read(uint16(addr), true)
 			addr++
 			hi = cpu.bus.Read(uint16(addr), true)
 			addr++
-			sb.WriteString("($")
-			sb.Write(hex(uint32(hi)<<8|uint32(lo), 4))
-			sb.WriteString(") {IND}")
+			sbOp.WriteString("($")
+			sbOp.Write(hex(uint32(hi)<<8|uint32(lo), 4))
+			sbOp.WriteString(")")
+			sbDesc.WriteString("{IND}")
 		case AddrModeREL:
 			value = cpu.bus.Read(uint16(addr), true)
 			addr++
-			sb.WriteRune('$')
-			sb.Write(hex(uint32(value), 2))
-			sb.WriteString(" [$")
-			sb.Write(hex(addr+uint32(value), 4))
-			sb.WriteString("] {REL}")
+			sbOp.WriteRune('$')
+			sbOp.Write(hex(uint32(value), 2))
+			sbOp.WriteString(" [$")
+			sbOp.Write(hex(addr+uint32(value), 4))
+			sbOp.WriteRune(']')
+			sbDesc.WriteString("{REL}")
 		}
 
 		disassembly.Index = append(disassembly.Index, lineAddr)
-		disassembly.Lines[lineAddr] = sb.String()
+		disassembly.Op[lineAddr] = sbOp.String()
+		if opName != "???" {
+			disassembly.Desc[lineAddr] = sbDesc.String()
+		} else {
+			disassembly.Desc[lineAddr] = ""
+		}
+
+		sbOp.Reset()
+		sbDesc.Reset()
 	}
 
 	return disassembly
