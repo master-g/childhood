@@ -23,6 +23,9 @@ package pkg
 const (
 	// MemoryCapacity the size of memory that a 6502 cpu can address
 	MemoryCapacity = 65536
+
+	// CpuMemoryCapacity is the size of memory that a NES CPU can address
+	CpuMemoryCapacity = 2048
 )
 
 // Memory interface definition
@@ -57,4 +60,28 @@ func (m *PlainMemory) Write(addr uint16, value uint8) (oldValue uint8) {
 	m[int(addr)%MemoryCapacity] = value
 
 	return
+}
+
+type CpuMemory [CpuMemoryCapacity]byte
+
+func NewCpuMemory() *CpuMemory {
+	mem := &CpuMemory{}
+	mem.Reset()
+	return mem
+}
+
+func (m *CpuMemory) Reset() {
+	for i := 0; i < len(m); i++ {
+		m[i] = 0
+	}
+}
+
+func (m *CpuMemory) Read(addr uint16) (value uint8) {
+	return m[addr&0x07FF]
+}
+
+func (m *CpuMemory) Write(addr uint16, value uint8) (oldValue uint8) {
+	oldValue = m[addr&0x07FF]
+	m[addr&0x07FF] = value
+	return oldValue
 }

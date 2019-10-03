@@ -89,7 +89,8 @@ type MG6502 struct {
 	FLAG uint8
 
 	// bus
-	bus *Bus
+	reader CpuReader
+	writer CpuWriter
 
 	// assistive variables
 	fetched    uint8  // Represents the working input value to the ALU
@@ -100,6 +101,7 @@ type MG6502 struct {
 	cycles     uint8  // How many cycles the instruction has remaining
 	clockCount uint32 // Global accumulation of the number of clocks
 
+	// lookup table of opcode to instructions
 	lookup []*Instruction
 }
 
@@ -112,7 +114,8 @@ func NewMG6502() *MG6502 {
 		SP:         0,
 		PC:         0,
 		FLAG:       0,
-		bus:        nil,
+		reader:     nil,
+		writer:     nil,
 		fetched:    0,
 		temp:       0,
 		addrAbs:    0,
@@ -264,9 +267,12 @@ func (cpu *MG6502) Complete() bool {
 	return cpu.cycles == 0
 }
 
-// Attach CPU to bus
-func (cpu *MG6502) Attach(bus *Bus) {
-	cpu.bus = bus
+func (cpu *MG6502) SetReader(reader CpuReader) {
+	cpu.reader = reader
+}
+
+func (cpu *MG6502) SetWriter(writer CpuWriter) {
+	cpu.writer = writer
 }
 
 // Disassemble a range of memory, with keys equivalent to instruction start
@@ -312,8 +318,8 @@ func (cpu *MG6502) Disassemble(start, end uint16) *Disassembly {
 		sbOp.Write(hex(addr, 4))
 		sbOp.WriteString(": ")
 
-		// Read instruction, and get its mnemonic name
-		opcode := cpu.bus.Read(uint16(addr), true)
+		// CpuRead instruction, and get its mnemonic name
+		opcode := cpu.reader.CpuRead(uint16(addr), true)
 		opName := cpu.lookup[opcode].name
 		addr++
 		sbOp.WriteString(opName)
@@ -328,87 +334,87 @@ func (cpu *MG6502) Disassemble(start, end uint16) *Disassembly {
 		case AddrModeIMP:
 			sbDesc.WriteString("{IMP}")
 		case AddrModeIMM:
-			value = cpu.bus.Read(uint16(addr), true)
+			value = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
 			sbOp.WriteString("#$")
 			sbOp.Write(hex(uint32(value), 2))
 			sbDesc.WriteString("{IMM}")
 		case AddrModeZP0:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = 0x00
+			// hi = 0x00
 			sbOp.WriteRune('$')
 			sbOp.Write(hex(uint32(lo), 2))
 			sbDesc.WriteString("{ZP0}")
 		case AddrModeZPX:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = 0x00
+			// hi = 0x00
 			sbOp.WriteRune('$')
 			sbOp.Write(hex(uint32(lo), 2))
 			sbOp.WriteString(", X")
 			sbDesc.WriteString("{ZPX}")
 		case AddrModeZPY:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = 0x00
+			// hi = 0x00
 			sbOp.WriteRune('$')
 			sbOp.Write(hex(uint32(lo), 2))
 			sbOp.WriteString(", Y")
 			sbDesc.WriteString("{ZPY}")
 		case AddrModeIZX:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = 0x00
+			// hi = 0x00
 			sbOp.WriteString("($")
 			sbOp.Write(hex(uint32(lo), 2))
 			sbOp.WriteString(", X)")
 			sbDesc.WriteString("{IZX}")
 		case AddrModeIZY:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = 0x00
+			// hi = 0x00
 			sbOp.WriteString("($")
 			sbOp.Write(hex(uint32(lo), 2))
 			sbOp.WriteString(", Y)")
 			sbDesc.WriteString("{IZY}")
 		case AddrModeABS:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = cpu.bus.Read(uint16(addr), true)
+			hi = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
 			sbOp.WriteRune('$')
 			sbOp.Write(hex(uint32(hi)<<8|uint32(lo), 4))
 			sbDesc.WriteString("{ABS}")
 		case AddrModeABX:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = cpu.bus.Read(uint16(addr), true)
+			hi = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
 			sbOp.WriteRune('$')
 			sbOp.Write(hex(uint32(hi)<<8|uint32(lo), 4))
 			sbOp.WriteString(", X")
 			sbDesc.WriteString("{ABX}")
 		case AddrModeABY:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = cpu.bus.Read(uint16(addr), true)
+			hi = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
 			sbOp.WriteRune('$')
 			sbOp.Write(hex(uint32(hi)<<8|uint32(lo), 4))
 			sbOp.WriteString(", Y")
 			sbDesc.WriteString("{ABY}")
 		case AddrModeIND:
-			lo = cpu.bus.Read(uint16(addr), true)
+			lo = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
-			hi = cpu.bus.Read(uint16(addr), true)
+			hi = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
 			sbOp.WriteString("($")
 			sbOp.Write(hex(uint32(hi)<<8|uint32(lo), 4))
 			sbOp.WriteString(")")
 			sbDesc.WriteString("{IND}")
 		case AddrModeREL:
-			value = cpu.bus.Read(uint16(addr), true)
+			value = cpu.reader.CpuRead(uint16(addr), true)
 			addr++
 			sbOp.WriteRune('$')
 			sbOp.Write(hex(uint32(value), 2))
@@ -487,7 +493,7 @@ func (cpu *MG6502) read(addr uint16) uint8 {
 	// is intentional under normal circumstances. However the disassembler will
 	// want to read the data at an address without changing the state of the
 	// devices on the bus
-	return cpu.bus.Read(addr, false)
+	return cpu.reader.CpuRead(addr, false)
 }
 
 // read a 16-bit data from the bus, the lower 8-bit is read first
@@ -500,7 +506,7 @@ func (cpu *MG6502) read16(addr uint16) uint16 {
 
 // writes a byte to the bus at the specified address
 func (cpu *MG6502) write(addr uint16, data uint8) {
-	cpu.bus.Write(addr, data)
+	cpu.writer.CpuWrite(addr, data)
 }
 
 // This function sources the data used by the instruction into

@@ -32,7 +32,8 @@ import (
 
 var (
 	cpu           *pkg.MG6502
-	bus           *pkg.Bus
+	reader        pkg.CpuReader
+	writer        pkg.CpuWriter
 	disassembly   *pkg.Disassembly
 	paragraphCPU  *widgets.Paragraph
 	paragraphCode *widgets.Paragraph
@@ -87,7 +88,7 @@ func renderRam(p *widgets.Paragraph, addr uint16, numRow, numCol int) {
 		sb.WriteString(fmt.Sprintf("$%04X:", curAddr))
 		for col := 0; col < numCol; col++ {
 			sb.WriteRune(' ')
-			sb.WriteString(fmt.Sprintf("%02X", bus.CpuRead(curAddr, true)))
+			sb.WriteString(fmt.Sprintf("%02X", reader.CpuRead(curAddr, true)))
 			curAddr++
 		}
 		sb.WriteRune('\n')
@@ -139,7 +140,14 @@ func loadCPU() {
 		return
 	}
 
-	bus = pkg.NewBus(cpu)
+	bus := &PlainBus{
+		mem: make([]uint8, 65536),
+	}
+	cpu.SetWriter(bus)
+	cpu.SetReader(bus)
+	reader = bus
+	writer = bus
+	bus.Reset()
 
 	// load bytecode
 	codes := []byte{0xA2, 0x0A, 0x8E, 0x00, 0x00, 0xA2, 0x03, 0x8E, 0x01, 0x00, 0xAC, 0x00, 0x00, 0xA9, 0x00, 0x18, 0x6D, 0x01, 0x00, 0x88, 0xD0, 0xFA, 0x8D, 0x02, 0x00, 0xEA, 0xEA, 0xEA}
