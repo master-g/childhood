@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package pkg
+package memory
 
 const (
-	// MemoryCapacity the size of memory that a 6502 cpu can address
-	MemoryCapacity = 65536
+	// Capacity the size of memory that a 6502 cpu can address
+	Capacity = 65536
 
 	// CpuMemoryCapacity is the size of memory that a NES CPU can address
 	CpuMemoryCapacity = 2048
@@ -36,7 +36,7 @@ type Memory interface {
 }
 
 // PlainMemory 64KB of plain bytes
-type PlainMemory [MemoryCapacity]uint8
+type PlainMemory [Capacity]uint8
 
 // NewPlainMemory create and returns a plain memory reference
 func NewPlainMemory() *PlainMemory {
@@ -52,12 +52,12 @@ func (m *PlainMemory) Reset() {
 }
 
 func (m *PlainMemory) Read(addr uint16) (value uint8) {
-	return m[int(addr)%MemoryCapacity]
+	return m[int(addr)%Capacity]
 }
 
 func (m *PlainMemory) Write(addr uint16, value uint8) (oldValue uint8) {
-	oldValue = m[int(addr)%MemoryCapacity]
-	m[int(addr)%MemoryCapacity] = value
+	oldValue = m[int(addr)%Capacity]
+	m[int(addr)%Capacity] = value
 
 	return
 }

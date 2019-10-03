@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package pkg
+package mg6502
 
 func newInstructionSet() []*Instruction {
 	lookup := []*Instruction{

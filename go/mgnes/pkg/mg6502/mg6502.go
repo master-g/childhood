@@ -18,10 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package pkg
+package mg6502
 
 import (
 	"fmt"
+	"mgnes/pkg/log"
 	"strings"
 )
 
@@ -89,8 +90,8 @@ type MG6502 struct {
 	FLAG uint8
 
 	// bus
-	reader CpuReader
-	writer CpuWriter
+	reader Reader
+	writer Writer
 
 	// assistive variables
 	fetched    uint8  // Represents the working input value to the ALU
@@ -234,7 +235,7 @@ func (cpu *MG6502) Clock() {
 		// always set the unused flag to 1
 		cpu.SetFlag(FlagUnused, true)
 
-		if logEnable {
+		if log.IsLoggingEnable() {
 			flagString := "NVUBDIZC"
 			flagValues := []uint8{FlagNegative, FlagOverflow, FlagUnused, FlagBreak, FlagDecimal, FlagInterrupt, FlagZero, FlagCarry}
 
@@ -247,7 +248,7 @@ func (cpu *MG6502) Clock() {
 				}
 			}
 
-			logger.Log(fmt.Sprintf("%10d:%02d PC:%04X %s A:%02X X:%02X Y:%02X %s STKP:%02X",
+			log.L(fmt.Sprintf("%10d:%02d PC:%04X %s A:%02X X:%02X Y:%02X %s STKP:%02X",
 				cpu.clockCount, 0, logPC, "XXX", cpu.A, cpu.X, cpu.Y,
 				sb.String(), cpu.SP))
 		}
@@ -267,11 +268,11 @@ func (cpu *MG6502) Complete() bool {
 	return cpu.cycles == 0
 }
 
-func (cpu *MG6502) SetReader(reader CpuReader) {
+func (cpu *MG6502) SetReader(reader Reader) {
 	cpu.reader = reader
 }
 
-func (cpu *MG6502) SetWriter(writer CpuWriter) {
+func (cpu *MG6502) SetWriter(writer Writer) {
 	cpu.writer = writer
 }
 

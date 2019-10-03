@@ -18,38 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package pkg
+package mg6502
 
-import (
-	"strings"
-)
-
-// Disassembly represents disassembly of an 6502 instruction context
-type Disassembly struct {
-	// Index contains address list
-	Index []uint16
-	// Op maps addr to opcode name
-	Op map[uint16]string
-	// Desc maps addr to opcode addressing mode
-	Desc map[uint16]string
-}
-
-// String implementation
-func (d *Disassembly) Stringify(addr uint16, length int) string {
-	op := d.Op[addr]
-	desc := d.Desc[addr]
-
-	sb := &strings.Builder{}
-	sb.WriteString(op)
-	if sb.Len()+len(desc) > length {
-		sb.WriteRune(' ')
-	} else {
-		for sb.Len()+len(desc) < length {
-			sb.WriteRune(' ')
-		}
-	}
-
-	sb.WriteString(desc)
-
-	return sb.String()
+// Writer defines an interface for CPU to write data to
+type Writer interface {
+	CpuWrite(addr uint16, data uint8)
 }

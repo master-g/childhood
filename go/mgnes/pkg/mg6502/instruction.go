@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package pkg
+package mg6502
 
 // Instruction contains information of a 6502 opcode
 type Instruction struct {

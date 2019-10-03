@@ -18,19 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package pkg
-
-const (
-	// MirrorHorizontal for cartridge mirroring horizontal
-	MirrorHorizontal = iota
-	MirrorVertical
-	MirrorOneScreenLo
-	MirrorOneScreenHi
-)
+package cartridge
 
 // Cartridge represents a NES cartridge from a software perspective
 type Cartridge struct {
-	Mirror int
+	Mirroring MirroringDirection
 
 	imageValid  bool
 	mapperId    uint8

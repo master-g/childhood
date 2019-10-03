@@ -18,40 +18,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package pkg
+package mg2c02
 
-import "fmt"
+import "mgnes/pkg/cartridge"
 
-// Logger interface for logging in this module
-type Logger interface {
-	Log(msg string)
+// MG2C02 emulates NES' PPU unit (2C02 chip) from a software perspective
+type MG2C02 struct {
+	name    [2][1024]uint8
+	pattern [2][4096]uint8
+	palette [32]uint8
+
+	scanline int16
+	cycle    int16
 }
 
-type defaultLogger struct {
+func (ppu *MG2C02) CpuWrite(addr uint16, data uint8) {
+	// ppu.addr & 0x0007 = data
+	return
 }
 
-// Log default implementation
-func (l *defaultLogger) Log(msg string) {
-	fmt.Println(msg)
+func (ppu *MG2C02) CpuRead(addr uint16, readonly bool) (data uint8) {
+	// data = ppu.addr & 0x0007
+	return
 }
 
-var (
-	defaultLoggerImpl        = &defaultLogger{}
-	logger            Logger = defaultLoggerImpl
+func (ppu *MG2C02) AttachCartridge(cart *cartridge.Cartridge) {
 
-	logEnable = false
-)
-
-// SetLogger set logger instance, if pass in `nil`, a default logger will be use
-func SetLogger(impl Logger) {
-	if impl == nil {
-		logger = defaultLoggerImpl
-	} else {
-		logger = impl
-	}
 }
 
-// SetLogEnable sets log flag
-func SetLogEnable(enable bool) {
-	logEnable = enable
+func (ppu *MG2C02) Clock() {
+
 }

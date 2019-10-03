@@ -23,7 +23,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"mgnes/pkg"
+	"mgnes/pkg/mg6502"
 	"strings"
 
 	ui "github.com/gizak/termui/v3"
@@ -31,10 +31,9 @@ import (
 )
 
 var (
-	cpu           *pkg.MG6502
-	reader        pkg.CpuReader
-	writer        pkg.CpuWriter
-	disassembly   *pkg.Disassembly
+	cpu           *mg6502.MG6502
+	reader        mg6502.Reader
+	disassembly   *mg6502.Disassembly
 	paragraphCPU  *widgets.Paragraph
 	paragraphCode *widgets.Paragraph
 	paragraphRam0 *widgets.Paragraph
@@ -45,14 +44,14 @@ var (
 func renderCpu(p *widgets.Paragraph) {
 	sb := &strings.Builder{}
 	flags := []uint8{
-		pkg.FlagNegative,
-		pkg.FlagOverflow,
-		pkg.FlagUnused,
-		pkg.FlagBreak,
-		pkg.FlagDecimal,
-		pkg.FlagInterrupt,
-		pkg.FlagZero,
-		pkg.FlagCarry,
+		mg6502.FlagNegative,
+		mg6502.FlagOverflow,
+		mg6502.FlagUnused,
+		mg6502.FlagBreak,
+		mg6502.FlagDecimal,
+		mg6502.FlagInterrupt,
+		mg6502.FlagZero,
+		mg6502.FlagCarry,
 	}
 	symbols := []rune{'N', 'V', '-', 'B', 'D', 'I', 'Z', 'C'}
 
@@ -134,7 +133,7 @@ func draw() {
 
 func loadCPU() {
 	// create cpu and bus
-	cpu = pkg.NewMG6502()
+	cpu = mg6502.NewMG6502()
 	if cpu == nil {
 		log.Fatal("could not create 6502")
 		return
@@ -146,7 +145,6 @@ func loadCPU() {
 	cpu.SetWriter(bus)
 	cpu.SetReader(bus)
 	reader = bus
-	writer = bus
 	bus.Reset()
 
 	// load bytecode

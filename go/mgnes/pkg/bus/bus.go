@@ -18,38 +18,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package pkg
+package bus
 
-// CpuReader interface for CPU reader
-type CpuReader interface {
-	CpuRead(addr uint16, readonly bool) (data uint8)
-}
-
-// CpuWriter interface for CPU writer
-type CpuWriter interface {
-	CpuWrite(addr uint16, data uint8)
-}
+import (
+	"mgnes/pkg/cartridge"
+	"mgnes/pkg/log"
+	"mgnes/pkg/memory"
+	"mgnes/pkg/mg2c02"
+	"mgnes/pkg/mg6502"
+)
 
 // Bus transmit data between cpu and other components in the NES console
 type Bus struct {
-	cpu  *MG6502
-	ppu  *MG2C02
-	cart *Cartridge
-	ram  Memory
+	cpu  *mg6502.MG6502
+	ppu  *mg2c02.MG2C02
+	cart *cartridge.Cartridge
+	ram  memory.Memory
 
 	systemClockCounter int
 }
 
 // NewBus create and return a new bus reference
-func NewBus(cpu *MG6502) (bus *Bus) {
+func NewBus(cpu *mg6502.MG6502) (bus *Bus) {
 	if cpu == nil {
-		logger.Log("invalid cpu")
+		log.L("invalid cpu")
 		return
 	}
 	bus = &Bus{
 		cpu:  cpu,
 		ppu:  nil,
-		ram:  NewCpuMemory(),
+		ram:  memory.NewCpuMemory(),
 		cart: nil,
 	}
 	cpu.SetReader(bus)
@@ -97,7 +95,7 @@ func (bus *Bus) CpuRead(addr uint16, readonly bool) (data uint8) {
 }
 
 // InsertCartridge attach a cartridge to the bus
-func (bus *Bus) InsertCartridge(cart *Cartridge) {
+func (bus *Bus) InsertCartridge(cart *cartridge.Cartridge) {
 	bus.cart = cart
 	bus.ppu.AttachCartridge(cart)
 }
