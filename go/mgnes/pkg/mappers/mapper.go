@@ -18,36 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package mg2c02
+package mappers
 
-import (
-	"mgnes/pkg/cartridge"
-)
-
-// MG2C02 emulates NES' PPU unit (2C02 chip) from a software perspective
-type MG2C02 struct {
-	name    [2][1024]uint8
-	pattern [2][4096]uint8
-	palette [32]uint8
-
-	scanline int16
-	cycle    int16
-}
-
-func (ppu *MG2C02) CpuWrite(addr uint16, data uint8) {
-	// ppu.addr & 0x0007 = data
-	return
-}
-
-func (ppu *MG2C02) CpuRead(addr uint16, readonly bool) (data uint8) {
-	// data = ppu.addr & 0x0007
-	return
-}
-
-func (ppu *MG2C02) AttachCartridge(cart *cartridge.Cartridge) {
-
-}
-
-func (ppu *MG2C02) Clock() {
-
+// Mapper interface
+type Mapper interface {
+	CpuMapRead(addr uint16) (mappedAddr uint32, flag bool)
+	CpuMapWrite(addr uint16) (mappedAddr uint32, flag bool)
+	PpuMapRead(addr uint16) (mappedAddr uint32, flag bool)
+	PpuMapWrite(addr uint16) (mappedAddr uint32, flag bool)
 }

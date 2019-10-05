@@ -18,12 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package cartridge
+package mappers
 
-// Mapper interface
-type Mapper interface {
-	CpuMapRead(addr uint16) (mappedAddr uint32, flag bool)
-	CpuMapWrite(addr uint16) (mappedAddr uint32, flag bool)
-	PpuMapRead(addr uint16) (mappedAddr uint32, flag bool)
-	PpuMapWrite(addr uint16) (mappedAddr uint32, flag bool)
+import (
+	"mgnes/pkg/ines"
+)
+
+func Create(header *ines.Header) Mapper {
+	if header == nil {
+		return nil
+	}
+	switch header.Mapper() {
+	case 0:
+		return NewMapper000(header.PRG, header.CHR)
+	default:
+		return nil
+	}
 }

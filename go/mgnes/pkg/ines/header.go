@@ -18,10 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package cartridge
+package ines
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -159,31 +160,40 @@ var (
 )
 
 // NewHeader create a new header from data
-func NewHeader(r io.Reader) *Header {
+func NewHeader(r io.Reader) (header *Header, err error) {
 	buf := make([]byte, HeaderSize)
-	n, err := r.Read(buf)
-	if n != HeaderSize || err != nil {
-		return nil
+	n := 0
+	n, err = io.ReadAtLeast(r, buf, HeaderSize)
+	if n != HeaderSize {
+		err = errors.New("invalid header size")
+		return
 	}
-	h := &Header{}
-	copy(h.Identifier[:], buf[:4])
-	if !bytes.Equal(h.Identifier[:], standardIdentifier) {
-		return nil
+	if err != nil {
+		return
 	}
-
-	h.PRG = buf[4]
-	h.CHR = buf[5]
-	h.Flag6 = buf[6]
-	h.Flag7 = buf[7]
-	h.PRGRAM = buf[8]
-	h.Flag9 = buf[9]
-	h.Flag10 = buf[10]
-	copy(h.padding[:], buf[10:])
-	if !bytes.Equal(h.padding[:], standardPadding) {
-		return nil
+	header = &Header{}
+	copy(header.Identifier[:], buf[:4])
+	if !bytes.Equal(header.Identifier[:], standardIdentifier) {
+		err = errors.New("invalid identifier")
+		header = nil
+		return
 	}
 
-	return h
+	header.PRG = buf[4]
+	header.CHR = buf[5]
+	header.Flag6 = buf[6]
+	header.Flag7 = buf[7]
+	header.PRGRAM = buf[8]
+	header.Flag9 = buf[9]
+	header.Flag10 = buf[10]
+	copy(header.padding[:], buf[10:])
+	if !bytes.Equal(header.padding[:], standardPadding) {
+		err = errors.New("invalid padding")
+		header = nil
+		return
+	}
+
+	return
 }
 
 // PRGROMSize returns PRG ROM size

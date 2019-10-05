@@ -21,57 +21,71 @@
 package cartridge
 
 import (
+	"errors"
+	"io"
+	"io/ioutil"
 	"mgnes/pkg/ines"
 	"mgnes/pkg/mappers"
 )
 
-// Cartridge represents a NES cartridge from a software perspective
-type Cartridge struct {
-	Mirroring ines.MirroringDirection
-
-	imageValid  bool
-	mapperId    uint8
-	numPRGBanks uint8
-	numCHRBanks uint8
-
-	memPRG []uint8
-	memCHR []uint8
-
-	mapper mappers.Mapper
-}
-
-func (cart *Cartridge) IsImageValid() bool {
-	return cart.imageValid
-}
-
-func (cart *Cartridge) CpuRead(addr uint16) (data uint8, flag bool) {
-	var mappedAddr uint32
-	if mappedAddr, flag = cart.mapper.CpuMapRead(addr); flag {
-		data = cart.memPRG[mappedAddr]
+// Load cartridge from io.Reader
+func Load(reader io.Reader) (cart *Cartridge, err error) {
+	if reader == nil {
+		err = errors.New("invalid reader")
+		return
 	}
-	return
-}
 
-func (cart *Cartridge) CpuWrite(addr uint16, data uint8) (flag bool) {
-	var mappedAddr uint32
-	if mappedAddr, flag = cart.mapper.CpuMapWrite(addr); flag {
-		cart.memPRG[mappedAddr] = data
+	var header *ines.Header
+	header, err = ines.NewHeader(reader)
+	if header == nil {
+		err = errors.New("invalid iNES header")
+		return
 	}
-	return
-}
 
-func (cart *Cartridge) PpuRead(addr uint16) (data uint8, flag bool) {
-	var mappedAddr uint32
-	if mappedAddr, flag = cart.mapper.PpuMapRead(addr); flag {
-		data = cart.memCHR[mappedAddr]
+	if header.Trainer() {
+		var discarded int64
+		discarded, err = io.CopyN(ioutil.Discard, reader, 512)
+		if discarded != 512 {
+			err = errors.New("invalid iNES header with trainer flag set")
+			return
+		}
+		if err != nil {
+			return
+		}
 	}
-	return
-}
 
-func (cart *Cartridge) PpuWrite(addr uint16, data uint8) (flag bool) {
-	var mappedAddr uint32
-	if mappedAddr, flag = cart.mapper.PpuMapWrite(addr); flag {
-		cart.memCHR[mappedAddr] = data
+	memPRG := make([]uint8, header.PRGROMSize())
+	memCHR := make([]uint8, header.CHRROMSize())
+
+	n := 0
+	n, err = reader.Read(memPRG)
+	if n != header.PRGROMSize() {
+		err = errors.New("invalid PRG data")
+		return
 	}
+	if err != nil {
+		return
+	}
+
+	n, err = reader.Read(memCHR)
+	if n != header.CHRROMSize() {
+		err = errors.New("invalid CHR data")
+		return
+	}
+	if err != nil {
+		return
+	}
+
+	cart = &Cartridge{
+		Mirroring:   header.Mirroring(),
+		imageValid:  true,
+		mapperId:    header.Mapper(),
+		numPRGBanks: header.PRG,
+		numCHRBanks: header.CHR,
+		memPRG:      memPRG,
+		memCHR:      memCHR,
+		mapper:      mappers.Create(header),
+	}
+
 	return
 }
