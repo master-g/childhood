@@ -1,0 +1,19 @@
+# ------------------------------
+# macOS
+# ------------------------------
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+/.vscode
+/.fleet
+/.idea
+/target
+/.cargo
+/temp
+/.data
+
