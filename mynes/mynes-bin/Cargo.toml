@@ -30,6 +30,7 @@ clap = { version = "4.5", default-features = false, features = [
 	"usage",
 ] }
 clap-verbosity-flag = { version = "2.2", default-features = false }
+image = { workspace = true }
 lazy_static = "1"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
