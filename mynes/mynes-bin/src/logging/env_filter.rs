@@ -5,9 +5,9 @@ use tracing_subscriber::EnvFilter;
 use super::filter_from_value;
 
 #[derive(Debug)]
-pub struct CustomEnvFilter(pub EnvFilter);
+pub struct Custom(pub EnvFilter);
 
-impl Clone for CustomEnvFilter {
+impl Clone for Custom {
 	fn clone(&self) -> Self {
 		Self(EnvFilter::builder().parse(self.0.to_string()).unwrap())
 	}
@@ -23,7 +23,7 @@ impl CustomEnvFilterParser {
 }
 
 impl TypedValueParser for CustomEnvFilterParser {
-	type Value = CustomEnvFilter;
+	type Value = Custom;
 
 	fn parse_ref(
 		&self,
@@ -32,7 +32,7 @@ impl TypedValueParser for CustomEnvFilterParser {
 		value: &std::ffi::OsStr,
 	) -> Result<Self::Value, clap::Error> {
 		if let Ok(dirs) = std::env::var("RUST_LOG") {
-			return Ok(CustomEnvFilter(EnvFilter::builder().parse_lossy(dirs)));
+			return Ok(Custom(EnvFilter::builder().parse_lossy(dirs)));
 		}
 
 		let inner = NonEmptyStringValueParser::new();
@@ -46,7 +46,7 @@ impl TypedValueParser for CustomEnvFilterParser {
 			);
 			err
 		})?;
-		Ok(CustomEnvFilter(filter))
+		Ok(Custom(filter))
 	}
 
 	fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue> + '_>> {

@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use mynes_common::{cst::LOGO, env};
 
-use crate::logging::{CustomEnvFilter, CustomEnvFilterParser};
+use crate::logging::{Custom, CustomEnvFilterParser};
 
 const INFO: &str = r"
 MyNES toolkit command-line interface
@@ -22,7 +22,7 @@ struct Cli {
 	#[arg(default_value = "info")]
 	#[arg(value_parser = CustomEnvFilterParser::new())]
 	#[arg(global = true)]
-	log: CustomEnvFilter,
+	log: Custom,
 
 	#[command(subcommand)]
 	command: Option<Commands>,
@@ -37,7 +37,7 @@ enum Commands {
 	Version,
 }
 
-pub(crate) fn prepare(log: CustomEnvFilter) -> Option<tracing_appender::non_blocking::WorkerGuard> {
+pub(crate) fn prepare(log: Custom) -> Option<tracing_appender::non_blocking::WorkerGuard> {
 	crate::logging::builder()
 		.with_filter(log)
 		.with_file_appender(std::path::PathBuf::from(".logs"))

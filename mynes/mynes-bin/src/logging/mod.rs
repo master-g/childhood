@@ -8,17 +8,18 @@ use tracing_log::LogTracer;
 use tracing_subscriber::{fmt, Layer};
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 
-pub(crate) use self::env_filter::CustomEnvFilter;
+pub(crate) use self::env_filter::Custom;
 pub(crate) use self::env_filter::CustomEnvFilterParser;
 
 const LOG_FILE_NAME_PREFIX: &str = "mynes.log";
 
 #[derive(Debug, Clone)]
 pub struct Builder {
-	filter: CustomEnvFilter,
+	filter: Custom,
 	log_to_path: Option<PathBuf>,
 }
 
+#[must_use]
 pub fn builder() -> Builder {
 	Builder::default()
 }
@@ -26,7 +27,7 @@ pub fn builder() -> Builder {
 impl Default for Builder {
 	fn default() -> Self {
 		Self {
-			filter: CustomEnvFilter(EnvFilter::default()),
+			filter: Custom(EnvFilter::default()),
 			log_to_path: None,
 		}
 	}
@@ -35,25 +36,30 @@ impl Default for Builder {
 impl Builder {
 	/// Set the log level on the builder
 	#[allow(dead_code)]
+	#[must_use]
 	pub fn with_log_level(mut self, log_level: &str) -> Self {
 		if let Ok(filter) = filter_from_value(log_level) {
-			self.filter = CustomEnvFilter(filter);
+			self.filter = Custom(filter);
 		}
 		self
 	}
 
 	/// Set the filter on the builder
-	pub fn with_filter(mut self, filter: CustomEnvFilter) -> Self {
+	#[must_use]
+	pub fn with_filter(mut self, filter: Custom) -> Self {
 		self.filter = filter;
 		self
 	}
 
+	#[must_use]
 	pub fn with_file_appender(mut self, path: PathBuf) -> Self {
 		self.log_to_path = Some(path);
 		self
 	}
 
 	/// Build a tracing dispatcher with the fmt subscriber (logs) and the chosen tracer subscriber
+	/// # Panics
+	/// if the tracing dispatcher fails to set the global default
 	pub fn build(self) -> Option<tracing_appender::non_blocking::WorkerGuard> {
 		let filter = self.filter;
 
@@ -85,7 +91,9 @@ impl Builder {
 	}
 }
 
-/// Create an EnvFilter from the given value. If the value is not a valid log level, it will be treated as EnvFilter directives.
+/// Parse the log level from the value
+/// # Errors
+/// if the log level is invalid
 pub fn filter_from_value(v: &str) -> Result<EnvFilter, tracing_subscriber::filter::ParseError> {
 	match v {
 		// Don't show any logs at all

@@ -16,6 +16,7 @@ pub fn init() {
 	info!("Running {}", release());
 }
 
+#[must_use]
 pub fn release() -> String {
 	format!("{} for {} on {}", *PKG_VERSION, os(), arch())
 }

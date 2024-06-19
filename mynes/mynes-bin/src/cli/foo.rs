@@ -1,5 +1,6 @@
 use crate::err::Error;
 
+#[allow(clippy::unused_async)]
 pub(super) async fn init() -> Result<(), Error> {
 	trace!("foo!");
 	debug!("foo!");
