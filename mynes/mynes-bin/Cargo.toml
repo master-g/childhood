@@ -6,38 +6,46 @@ homepage.workspace = true
 repository.workspace = true
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "mynes-chr2png"
-path = "src/bin/chr2png.rs"
-bench = false
-
-[[bin]]
-name = "mynes-dumper"
-path = "src/bin/dumper.rs"
+name = "mynes-cli"
+path = "src/bin/main.rs"
 bench = false
 
 [lints]
 workspace = true
 
 [dependencies]
+mynes-common = { path = "../mynes-common" }
+
 clap = { version = "4.5", default-features = false, features = [
-    "std",
-    "help",
-    "usage",
-    "error-context",
-    "suggestions",
-    "derive",
+	"derive",
+	"env",
+	"error-context",
+	"help",
+	"std",
+	"suggestions",
+	"unicode",
+	"usage",
 ] }
 clap-verbosity-flag = { version = "2.2", default-features = false }
+lazy_static = "1"
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = ["io"] }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-log = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", default-features = false, features = [
-    "html_reports",
-    "async_tokio",
+	"html_reports",
+	"async_tokio",
 ] }
+env_logger = { workspace = true }
+test-log = { workspace = true, features = ["trace"] }
 
 [features]
 bench = []
@@ -49,3 +57,6 @@ bench = false
 name = "main"
 harness = false
 required-features = ["bench"]
+
+[build-dependencies]
+semver = "1.0.23"
