@@ -1,6 +1,25 @@
-[package]
-name = "mynes"
+[workspace]
+members = ["mynes-bin"]
+resolver = "2"
+
+[workspace.package]
+homepage = "https://githhub.com/master-g/childhood/mynes"
+repository = "https://githhub.com/master-g/childhood/mynes"
+authors = ["master-g <master-g@users.noreply.github.com>"]
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+rust-version = "1.79.0"
 
-[dependencies]
+[workspace.dependencies]
+hex = "0.4.3"
+log = { version = "0.4", default-features = false }
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "fat"
+
+[profile.bench]
+debug = true

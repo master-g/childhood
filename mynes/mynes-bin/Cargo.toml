@@ -1,0 +1,51 @@
+[package]
+name = "mynes-bin"
+description = "A toolkit for working with NES ROMs"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mynes-chr2png"
+path = "src/bin/chr2png.rs"
+bench = false
+
+[[bin]]
+name = "mynes-dumper"
+path = "src/bin/dumper.rs"
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+clap = { version = "4.5", default-features = false, features = [
+    "std",
+    "help",
+    "usage",
+    "error-context",
+    "suggestions",
+    "derive",
+] }
+clap-verbosity-flag = { version = "2.2", default-features = false }
+
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false, features = [
+    "html_reports",
+    "async_tokio",
+] }
+
+[features]
+bench = []
+
+[lib]
+bench = false
+
+[[bench]]
+name = "main"
+harness = false
+required-features = ["bench"]
