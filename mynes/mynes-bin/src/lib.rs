@@ -8,3 +8,4 @@ pub mod logging;
 
 pub mod cli;
 mod err;
+mod palette;

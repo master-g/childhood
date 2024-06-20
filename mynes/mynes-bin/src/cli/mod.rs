@@ -34,6 +34,8 @@ struct Cli {
 enum Commands {
 	#[command(about = "Test command")]
 	Foo,
+	#[command(about = "Dump command")]
+	Dump(dump::DumpCommandArguments),
 	#[command(about = "Print version information")]
 	Version,
 }
@@ -59,6 +61,7 @@ pub async fn init() -> ExitCode {
 	let _guard = prepare(args.log);
 
 	let output = match args.command {
+		Some(Commands::Dump(args)) => dump::init(args).await,
 		Some(Commands::Foo) => foo::init().await,
 		_ => Ok(()),
 	};

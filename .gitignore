@@ -52,6 +52,7 @@ Mkfile.old
 dkms.conf
 
 .idea
+.DS_Store
 
 asm6
 *.nes
