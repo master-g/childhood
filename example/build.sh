@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-./asm6 example.asm rom.nes
+../asm6f/asm6f example.asm rom.nes
 open rom.nes
