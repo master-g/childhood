@@ -60,7 +60,7 @@ pub enum Palette {
 }
 
 impl Palette {
-	pub fn as_slice(&self) -> &[u8] {
+	pub fn as_slice(&self) -> &[(u8, u8, u8)] {
 		match self {
 			Palette::P3DSVC => P3DSVC.as_slice(),
 			Palette::ASQRealityA => ASQ_REALITY_A.as_slice(),

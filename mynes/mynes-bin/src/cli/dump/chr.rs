@@ -2,10 +2,7 @@ use clap::Args;
 use image::{ImageBuffer, Rgba};
 use tokio::io::AsyncReadExt;
 
-use crate::{
-	err::Error,
-	palette::{Palette, RGB_SIZE},
-};
+use crate::{err::Error, palette::Palette};
 
 const CHR_SIZE: usize = 8192; // process 8KB per time
 const PAGE_SIZE_IN_BYTES: usize = 256 * 16; // 16*16 tiles, 16 bytes per tile
@@ -78,7 +75,7 @@ fn set_tile_pixel(y: usize, line: u8, buf: &mut [u32], add: bool) {
 
 #[allow(clippy::cast_possible_truncation)]
 fn write_tile(
-	canvas_palette: &[u8],
+	canvas_palette: &[(u8, u8, u8)],
 	sprite_palette: &[u8],
 	img: &mut ImageBuffer<Rgba<u8>, Vec<u8>>,
 	page: usize,
@@ -92,17 +89,16 @@ fn write_tile(
 			let ox = (tx + page * 16) * 8 + x;
 			let oy = ty * 8 + y;
 			let palette_value = sprite_palette[pixel as usize];
-			let cpi: usize = (palette_value * RGB_SIZE as u8) as usize;
-			let r = canvas_palette[cpi];
-			let g = canvas_palette[cpi + 1];
-			let b = canvas_palette[cpi + 2];
+			let r = canvas_palette[palette_value as usize].0;
+			let g = canvas_palette[palette_value as usize].1;
+			let b = canvas_palette[palette_value as usize].2;
 			img.put_pixel(ox as u32, oy as u32, Rgba([r, g, b, 255]));
 		}
 	}
 }
 
 fn draw_image(
-	canvas_palette: &[u8],
+	canvas_palette: &[(u8, u8, u8)],
 	sprite_palette: &[u8],
 	buf: &[u8],
 ) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
