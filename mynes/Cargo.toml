@@ -1,5 +1,5 @@
 [workspace]
-members = ["mynes-bin", "mynes-common"]
+members = ["mynes-bin", "mynes-common", "mynes-rom"]
 resolver = "2"
 
 [workspace.package]
