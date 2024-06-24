@@ -1,3 +1,5 @@
+use std::ops::Shl;
+
 use serde::{Deserialize, Serialize};
 
 use crate::err::Error;
@@ -16,9 +18,9 @@ pub enum Version {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NameTableMirroring {
-	Vertical,
-	Horizontal,
+pub enum NameTableLayout {
+	VerticalMirroring,
+	HorizontalMirroring,
 	FourScreen,
 	MapperControlled,
 }
@@ -52,7 +54,7 @@ pub struct INesHeaderInfo {
 	pub chr_rom_size: usize,
 
 	/// The hard-wired name table layout
-	pub name_table_mirroring: NameTableMirroring,
+	pub name_table_layout: NameTableLayout,
 
 	/// If the cartridge has a battery-backed save RAM
 	pub has_battery: bool,
@@ -61,7 +63,10 @@ pub struct INesHeaderInfo {
 	pub has_trainer: bool,
 
 	/// Mapper number
-	pub mapper: u8,
+	pub mapper: usize,
+
+	/// Sub-mapper number
+	pub sub_mapper: usize,
 
 	/// The console type
 	pub console_type: ConsoleType,
@@ -132,16 +137,16 @@ impl INesHeaderInfo {
 
 		let four_screen = raw[6] & 0b1000 != 0;
 		let vertical_mirroring = raw[6] & 0b1 != 0;
-		let name_table_mirroring = match (four_screen, vertical_mirroring) {
-			(true, _) => NameTableMirroring::FourScreen,
-			(false, true) => NameTableMirroring::Vertical,
-			(false, false) => NameTableMirroring::Horizontal,
+		let name_table_layout = match (four_screen, vertical_mirroring) {
+			(true, _) => NameTableLayout::FourScreen,
+			(false, true) => NameTableLayout::VerticalMirroring,
+			(false, false) => NameTableLayout::HorizontalMirroring,
 		};
 
 		let has_battery = raw[6] & 0b10 != 0;
 		let has_trainer = raw[6] & 0b100 != 0;
 
-		let mapper = (raw[7] & 0b1111_0000) | (raw[6] >> 4);
+		let mapper = usize::from((raw[7] & 0b1111_0000) | (raw[6] >> 4));
 		let console_type = match raw[7] & 0b11 {
 			0 => ConsoleType::Nes,
 			1 => ConsoleType::VsSystem,
@@ -167,10 +172,11 @@ impl INesHeaderInfo {
 			version: Version::One,
 			prg_rom_size,
 			chr_rom_size,
-			name_table_mirroring,
+			name_table_layout,
 			has_battery,
 			has_trainer,
 			mapper,
+			sub_mapper: 0,
 			console_type,
 			prg_ram_size,
 			eeprom_size: None,
@@ -185,7 +191,74 @@ impl INesHeaderInfo {
 		}
 	}
 
+	fn cal_rom_size(msb: u8, lsb: u8, page_size: usize) -> usize {
+		if msb == 0xF {
+			let flags = usize::from(lsb) | (usize::from(msb) << 8);
+			let multipler = (flags & 0b0011) * 2 + 1;
+			let exponent = flags & 0b0000_1111_1100;
+			(2 << exponent) * multipler
+		} else {
+			(usize::from(lsb) + (usize::from(msb) << 8)) * page_size
+		}
+	}
+
+	#[allow(clippy::similar_names)]
 	fn extract_version_two(raw: &[u8]) -> Self {
-		todo!()
+		let prg_rom_lsb = raw[4];
+		let prg_rom_msb = raw[9] & 0b0000_1111;
+		let prg_rom_size = Self::cal_rom_size(prg_rom_msb, prg_rom_lsb, PRG_ROM_PAGE_SIZE);
+
+		let chr_rom_lsb = raw[5];
+		let chr_rom_msb = raw[9] >> 4;
+		let chr_rom_size = Self::cal_rom_size(chr_rom_msb, chr_rom_lsb, CHR_ROM_PAGE_SIZE);
+
+		let name_table_lsb = raw[6] & 0b1;
+		let name_table_msb = (raw[6] & 0b1000) >> 3;
+
+		let name_table_layout = match (name_table_msb, name_table_lsb) {
+			(0, 0) => NameTableLayout::VerticalMirroring,
+			(0, 1) => NameTableLayout::HorizontalMirroring,
+			(1, _) => NameTableLayout::MapperControlled,
+			_ => unreachable!(),
+		};
+
+		let has_battery = raw[6] & 0b10 != 0;
+		let has_trainer = raw[6] & 0b100 != 0;
+
+		let mapper_low = usize::from(raw[6] >> 4 | (raw[7] & 0b1111_0000));
+		let mapper_msb = usize::from(raw[8] & 0b0000_1111).shl(8);
+		let mapper = mapper_low | mapper_msb;
+
+		let sub_mapper = usize::from(raw[8] & 0b1111_0000) >> 4;
+
+		let timing_mode = match raw[12] & 0b11 {
+			0 => TimingMode::Ntsc,
+			1 => TimingMode::Pal,
+			2 => TimingMode::MultipleRegion,
+			3 => TimingMode::Ua6538,
+			_ => unreachable!(),
+		};
+
+		Self {
+			version: Version::Two,
+			prg_rom_size,
+			chr_rom_size,
+			name_table_layout,
+			has_battery,
+			has_trainer,
+			mapper,
+			sub_mapper,
+			console_type: todo!(),
+			prg_ram_size: todo!(),
+			eeprom_size: todo!(),
+			chr_ram_size: todo!(),
+			chr_nvram_size: todo!(),
+			timing_mode,
+			vs_ppu_type: todo!(),
+			vs_hardware_type: todo!(),
+			extended_console_type: todo!(),
+			num_of_misc_roms: todo!(),
+			default_expansion_device: todo!(),
+		}
 	}
 }
