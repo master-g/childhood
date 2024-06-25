@@ -8,4 +8,6 @@ pub enum Error {
 	Image(#[from] image::ImageError),
 	#[error("cannot open the specified file: {0}")]
 	Io(#[from] std::io::Error),
+	#[error("nes rom error: {0}")]
+	Rom(#[from] mynes_rom::err::Error),
 }

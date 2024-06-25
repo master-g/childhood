@@ -75,13 +75,13 @@ pub struct INesHeaderInfo {
 	pub prg_ram_size: usize,
 
 	/// The size of the PRG-NVRAM/EEPROM in bytes
-	pub eeprom_size: Option<usize>,
+	pub eeprom_size: usize,
 
 	/// The size of the CHR RAM in bytes
-	pub chr_ram_size: Option<usize>,
+	pub chr_ram_size: usize,
 
 	/// The size of the CHR-NVRAM in bytes
-	pub chr_nvram_size: Option<usize>,
+	pub chr_nvram_size: usize,
 
 	/// The CPU/PPU timing mode
 	pub timing_mode: TimingMode,
@@ -179,9 +179,9 @@ impl INesHeaderInfo {
 			sub_mapper: 0,
 			console_type,
 			prg_ram_size,
-			eeprom_size: None,
-			chr_ram_size: None,
-			chr_nvram_size: None,
+			eeprom_size: 0,
+			chr_ram_size: 0,
+			chr_nvram_size: 0,
 			timing_mode,
 			vs_ppu_type: 0,
 			vs_hardware_type: 0,
@@ -231,6 +231,14 @@ impl INesHeaderInfo {
 
 		let sub_mapper = usize::from(raw[8] & 0b1111_0000) >> 4;
 
+		let console_type = match raw[7] & 0b11 {
+			0 => ConsoleType::Nes,
+			1 => ConsoleType::VsSystem,
+			2 => ConsoleType::Playchoice10,
+			3 => ConsoleType::Extended,
+			_ => unreachable!(),
+		};
+
 		let timing_mode = match raw[12] & 0b11 {
 			0 => TimingMode::Ntsc,
 			1 => TimingMode::Pal,
@@ -238,6 +246,55 @@ impl INesHeaderInfo {
 			3 => TimingMode::Ua6538,
 			_ => unreachable!(),
 		};
+
+		let shift_count = raw[10] & 0b0000_1111;
+		let prg_ram_size = if shift_count == 0 {
+			0
+		} else {
+			64 << shift_count
+		};
+
+		let shift_count = raw[10] >> 4;
+		let eeprom_size = if shift_count == 0 {
+			0
+		} else {
+			64 << shift_count
+		};
+
+		let shift_count = raw[11] & 0b0000_1111;
+		let chr_ram_size = if shift_count == 0 {
+			0
+		} else {
+			64 << shift_count
+		};
+
+		let shift_count = raw[11] >> 4;
+		let chr_nvram_size = if shift_count == 0 {
+			0
+		} else {
+			64 << shift_count
+		};
+
+		let vs_ppu_type = if console_type == ConsoleType::VsSystem {
+			raw[13] & 0b0000_1111
+		} else {
+			0
+		};
+		let vs_hardware_type = if console_type == ConsoleType::VsSystem {
+			raw[13] >> 4
+		} else {
+			0
+		};
+
+		let extended_console_type = if console_type == ConsoleType::Extended {
+			raw[13] & 0b0000_1111
+		} else {
+			0
+		};
+
+		let num_of_misc_roms = raw[14] & 0b0000_0011;
+
+		let default_expansion_device = raw[15] & 0b0011_1111;
 
 		Self {
 			version: Version::Two,
@@ -248,17 +305,17 @@ impl INesHeaderInfo {
 			has_trainer,
 			mapper,
 			sub_mapper,
-			console_type: todo!(),
-			prg_ram_size: todo!(),
-			eeprom_size: todo!(),
-			chr_ram_size: todo!(),
-			chr_nvram_size: todo!(),
+			console_type,
+			prg_ram_size,
+			eeprom_size,
+			chr_ram_size,
+			chr_nvram_size,
 			timing_mode,
-			vs_ppu_type: todo!(),
-			vs_hardware_type: todo!(),
-			extended_console_type: todo!(),
-			num_of_misc_roms: todo!(),
-			default_expansion_device: todo!(),
+			vs_ppu_type,
+			vs_hardware_type,
+			extended_console_type,
+			num_of_misc_roms,
+			default_expansion_device,
 		}
 	}
 }
