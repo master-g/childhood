@@ -1,22 +1,22 @@
 [package]
 name = "mynes-common"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
-authors.workspace = true
-version.workspace = true
-edition.workspace = true
 license.workspace = true
 
 [dependencies]
-lazy_static = { workspace = true }
 once_cell = { workspace = true }
 tracing = { workspace = true }
 
-[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "ios"))'.dependencies]
-mimalloc = { version = "0.1.42", default-features = false }
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", target_os = "android"))'.dependencies]
+mimalloc = { version = "0.1.47", default-features = false }
 
-[target.'cfg(any(target_os = "android", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+[target.'cfg(any(target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
 jemallocator = "0.5.4"
+
 
 [lints]
 workspace = true
