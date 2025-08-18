@@ -30,8 +30,10 @@ void do_mlist(int *ip);
 void do_nolist(int *ip);
 void do_nomlist(int *ip);
 void do_db(int *ip);
+void do_str(int *ip);
 void do_dw(int *ip);
 void do_equ(int *ip);
+void do_sequ(int *ip);
 void do_page(int *ip);
 void do_org(int *ip);
 void do_bank(int *ip);
@@ -43,7 +45,6 @@ void do_rs(int *ip);
 void do_ds(int *ip);
 void do_fail(int *ip);
 void do_section(int *ip);
-void do_incchr(int *ip);
 void do_opt(int *ip);
 int  htoi(char *str, int nb);
 
@@ -88,9 +89,6 @@ int  calc_bank_base(void);
 void help(void);
 void show_seg_usage(void);
 
-/* MAP.C */
-int pce_load_map(char *fname, int mode);
-
 /* OUTPUT.C */
 void println(void);
 void clearln(void);
@@ -103,18 +101,6 @@ void write_srec(char *fname, char *ext, int base);
 void error(char *stptr);
 void warning(char *stptr);
 void fatal_error(char *stptr);
-
-/* PCX.C */
-int  pcx_pack_8x8_tile(unsigned char *buffer, int x, int y);
-int  pcx_pack_16x16_tile(unsigned char *buffer, int x, int y);
-int  pcx_pack_16x16_sprite(unsigned char *buffer, int x, int y);
-int  pcx_set_tile(struct t_symbol *ref, unsigned int offset);
-int  pcx_search_tile(unsigned char *data, int size);
-int  pcx_get_args(int *ip);
-int  pcx_parse_args(int i, int nb, int *a, int *b, int *c, int *d, int size);
-int  pcx_load(char *name);
-void decode_256(FILE *fp, int w, int h);
-void decode_16(FILE *fp, int w, int h);
 
 /* PROC.C */
 void do_call(int *ip);
@@ -130,5 +116,7 @@ struct t_symbol *stinstall(int hash, int type);
 int  labldef(int lval, int flag);
 void lablset(char *name, int val);
 void lablremap(void);
-void funcdump(const char *name, const char *in_fname);
-
+void stlist(char *file, int bank_offset);
+void constset(char *name, int val);
+void strconstset(char *name, char *val);
+int strconstget(char *buffer, int size);
