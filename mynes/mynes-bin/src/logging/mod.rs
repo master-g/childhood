@@ -5,8 +5,8 @@ use std::path::PathBuf;
 
 use tracing::Level;
 use tracing_log::LogTracer;
-use tracing_subscriber::{fmt, Layer};
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt};
+use tracing_subscriber::{Layer, fmt};
 
 pub(crate) use self::env_filter::Custom;
 pub(crate) use self::env_filter::CustomEnvFilterParser;
