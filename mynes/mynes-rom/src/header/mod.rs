@@ -9,6 +9,7 @@ const INES_HEADER_SIZE: usize = 16;
 const PRG_ROM_PAGE_SIZE: usize = 16384;
 const CHR_ROM_PAGE_SIZE: usize = 8192;
 const PRG_RAM_PAGE_SIZE: usize = 8192;
+#[allow(dead_code)]
 const TRAINER_ROM_SIZE: usize = 512;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
